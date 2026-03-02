@@ -460,7 +460,6 @@ yarn.lock.orig
 # Keep documentation
 !docs/
 !README.md
-!CLAUDE.md
 !CONTRIBUTING.md
 
 # Keep CI/CD workflows
