@@ -1,0 +1,55 @@
+# Docker build context exclusions for frontend/
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# Build artifacts (except dist/ which we need)
+.vite/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Testing
+.test/
+coverage/
+
+# Documentation
+docs/
+*.md
+
+# Misc
+.cache/
+.eslintcache
+.stylelintcache
+.prettierrc
+.editorconfig
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# This Dockerfile
+Dockerfile
+.dockerignore

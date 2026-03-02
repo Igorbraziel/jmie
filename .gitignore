@@ -1,0 +1,492 @@
+################################################################################
+# JMIE (.gitignore)
+################################################################################
+
+# ===== LLM-RELATED FILES =====
+.llm/
+CLAUDE.md
+
+# ===== ENVIRONMENT & SECRETS =====
+# Real credentials (NEVER commit these)
+.env
+.env.prod
+.env.prod.local
+.env.*.local
+
+# IDE-specific environment files
+.vscode/.env
+.idea/.env
+
+# AWS, GCP, and other cloud credentials
+*.pem
+*.key
+credentials.json
+*.json.example
+service-account.json
+.aws/credentials
+.gcp/
+gcloud-credentials/
+
+# ===== PYTHON =====
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+virtualenv/
+.python-version
+.python-venv
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Pip
+pip-log.txt
+pip-delete-this-directory.txt
+.pip/
+
+# Poetry (alternative package manager)
+poetry.lock
+
+# UV cache
+.uv/
+.cache/uv
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.coverage.xml
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+.jupyter/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.pyenv-version
+
+# Platformio
+.platformio/
+
+# ===== NODE.JS / FRONTEND =====
+# Dependencies
+frontend/node_modules/
+node_modules/
+npm-debug.log
+npm-debug.log.*
+yarn-error.log
+yarn-debug.log*
+lerna-debug.log*
+
+# Production build
+frontend/dist/
+frontend/build/
+.next/
+out/
+
+# Misc
+.DS_Store
+*.pem
+.eslintcache
+.stylelintcache
+
+# Node package manager lockfiles (for monorepos, but uv.lock takes precedence)
+package-lock.json.old
+yarn.lock.old
+
+# Vite
+frontend/.vite/
+dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# ===== GIT & VERSION CONTROL =====
+.git/
+.gitkeep
+.github/workflows/.env
+
+# ===== IDE & EDITOR =====
+# VS Code
+.vscode/
+.vscode-settings.json
+.vscode-extensions.json
+*.code-workspace
+
+# JetBrains IDEs (PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+.gradle/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+.vim/
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Atom
+.atom/
+.atomrc
+
+# VS
+.vscode/
+*.sln.iml
+
+# Intellij
+*.iml
+*.ids
+*.own
+*.handlers
+
+# ===== OS-SPECIFIC =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.exe
+*.lnk
+.windows/
+
+# Linux
+.directory
+.trash/
+
+# ===== DOCKER =====
+# Docker build artifacts
+docker-compose.override.yml
+.docker/
+.dockerignore
+
+# Build context files
+.buildx/
+
+# ===== DATABASE & DATA =====
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+
+# PostgreSQL
+pg_stat_statements.sql
+
+# RocksDB
+LOCK
+MANIFEST*
+LOG*
+CURRENT
+*.sst
+
+# Data and models (local training only)
+nlp/models/
+nlp/data/raw/
+nlp/data/test/
+nlp/data/train/
+nlp/checkpoints/
+
+# S3 local cache
+.s3/
+s3_cache/
+
+# ===== ML / EXPERIMENT ARTIFACTS =====
+# MLflow local runs
+mlruns/
+.mlflow/
+artifacts/
+
+# Jupyter notebook outputs
+*.out
+*.ipynb_checkpoints/
+
+# Model checkpoints
+*.ckpt
+*.pt
+*.pth
+*.pkl
+*.pickle
+models/
+*.h5
+*.pb
+*.onnx
+
+# Notebooks (except tracked ones)
+.ipynb_checkpoints/
+.jupyterlab/
+
+# Experiment logs
+logs/
+runs/
+*.log
+*.log.*
+
+# ===== AIRFLOW =====
+airflow/logs/
+airflow/dags/__pycache__/
+airflow/plugins/__pycache__/
+.airflow/
+airflow.cfg
+airflow.db
+unittests.cfg
+webserver_config.py
+
+# ===== TEMPORARY & BUILD FILES =====
+# Build artifacts
+*.o
+*.a
+*.la
+*.lo
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+.#*
+#*#
+
+# Test temporary files
+.pytest_cache/
+.tox/
+.hypothesis/
+*.cover
+.cache/
+
+# Build directories
+build/
+dist/
+*.egg-info/
+
+# ===== PROJECT-SPECIFIC =====
+# Claude Code temporary files
+tmpclaude-*/
+claude-*.tmp
+
+# Nul file (Windows)
+nul
+
+# Local task/todo files
+tasks.txt
+TODO.md
+todo.txt
+
+# Debugging
+.debug/
+debug.log
+pdb.set_trace()
+
+# Secrets manager
+.vault/
+.secrets/
+
+# Backup files
+*.backup
+*.bkp
+
+# ===== CI/CD ARTIFACTS =====
+# GitHub Actions
+.github/workflows/.env
+.github/cache/
+
+# GitLab CI
+.gitlab-ci.local.yml
+
+# CircleCI
+.circleci/.env
+
+# ===== DOCUMENTATION =====
+# MkDocs
+site/
+mkdocs_theme_override.md
+
+# Sphinx
+docs/_build/
+docs/.doctrees/
+
+# ===== PACKAGE MANAGER CACHE =====
+# NPM
+npm-cache/
+node-cache/
+
+# Pip
+pip-cache/
+
+# uv
+.uv/
+
+# Poetry
+poetry.local.lock
+
+# ===== MISC IGNORE PATTERNS =====
+# Compiled files
+*.class
+*.jar
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+
+# Dependency lock files from Windows git
+package-lock.json.orig
+yarn.lock.orig
+
+# IDE-specific project settings
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+.tmux
+.tmuxp.yaml
+
+# LSP server cache
+.cache/
+.lsp/
+
+################################################################################
+# EXCEPTIONS (files/folders that SHOULD be committed)
+################################################################################
+# These are marked with ! to be exceptions to previous ignore rules
+
+# Example environment files (with fake credentials)
+!.env.example
+!.env.dev.example
+!.env.*.example
+
+# Keep all source code
+!src/
+!api/
+!scraper/
+!nlp/
+!dags/
+!frontend/
+!db/
+
+# Keep configuration files
+!.github/
+!.gitignore
+!.dockerignore
+!.editorconfig
+
+# Keep documentation
+!docs/
+!README.md
+!CLAUDE.md
+!CONTRIBUTING.md
+
+# Keep CI/CD workflows
+!.github/workflows/
+
+# Keep test directories
+!tests/
+!test_fixtures/
+
+# Keep placeholders
+!.gitkeep
+
+# Keep infrastructure code
+!infrastructure/
+
+# Keep Docker files
+!Dockerfile
+!docker-compose*.yml
+
+# Keep project files
+!pyproject.toml
+!uv.lock
+!package.json
+!tsconfig.json
+!vite.config.ts
+
+################################################################################
+# END OF .gitignore
+################################################################################

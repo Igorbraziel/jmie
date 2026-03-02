@@ -1,0 +1,66 @@
+# Docker build context exclusions for api/
+
+# Python
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+env/
+.pip/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Testing
+.tox/
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+
+# Node (if any frontend assets)
+node_modules/
+npm-debug.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary
+*.tmp
+*.bak
+*.backup
+
+# CI/CD
+.github/
+
+# Test fixtures
+tests/fixtures/
+tests/unit/
+tests/integration/
+
+# Misc
+.dockerignore
+Dockerfile

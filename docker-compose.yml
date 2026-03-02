@@ -1,0 +1,249 @@
+version: '3.8'
+
+services:
+  # === PostgreSQL — Application Database ===
+  postgres-app:
+    image: postgres:15
+    container_name: jmie-postgres-app
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jmie_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-jmie_db}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_app_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./db/seeds/test_data.sql:/docker-entrypoint-initdb.d/02_seeds.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jmie_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === PostgreSQL — Airflow Metadata Database ===
+  postgres-airflow:
+    image: postgres:15
+    container_name: jmie-postgres-airflow
+    environment:
+      POSTGRES_USER: ${POSTGRES_AIRFLOW_USER:-airflow_user}
+      POSTGRES_PASSWORD: ${POSTGRES_AIRFLOW_PASSWORD:-airflow_password}
+      POSTGRES_DB: ${POSTGRES_AIRFLOW_DB:-airflow_db}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "${POSTGRES_AIRFLOW_PORT:-5433}:5432"
+    volumes:
+      - postgres_airflow_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AIRFLOW_USER:-airflow_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === Qdrant Vector Database ===
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: jmie-qdrant
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    environment:
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === MLflow Tracking Server ===
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: jmie-mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      MLFLOW_BACKEND_STORE_URI: ${MLFLOW_BACKEND_STORE_URI:-postgresql://jmie_user:password@postgres-app:5432/mlflow_db}
+      MLFLOW_ARTIFACT_ROOT: ${MLFLOW_ARTIFACT_ROOT:-/data/mlflow_artifacts}
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri postgresql://jmie_user:${POSTGRES_PASSWORD:-password}@postgres-app:5432/mlflow_db --default-artifact-root /data/mlflow_artifacts
+    volumes:
+      - mlflow_data:/data/mlflow_artifacts
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === Arize Phoenix LLM Observability ===
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: jmie-phoenix
+    ports:
+      - "6006:6006"
+    environment:
+      PHOENIX_ENVIRONMENT: ${PHOENIX_ENVIRONMENT:-development}
+    volumes:
+      - phoenix_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6006/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === Apache Airflow Scheduler ===
+  airflow-scheduler:
+    image: apache/airflow:2.8.0-python3.12
+    container_name: jmie-airflow-scheduler
+    environment:
+      AIRFLOW_HOME: ${AIRFLOW_HOME:-/home/airflow/gitsync}
+      AIRFLOW__CORE__DAGS_FOLDER: ${AIRFLOW__CORE__DAGS_FOLDER:-/home/airflow/gitsync/dags}
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-SequentialExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_AIRFLOW_USER:-airflow_user}:${POSTGRES_AIRFLOW_PASSWORD:-airflow_password}@postgres-airflow:5432/${POSTGRES_AIRFLOW_DB:-airflow_db}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-4Kt1Dxl7qZ5N6M8pL3Q9vX2wR8uI9oP5kL2mN6b5c3=}
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      PYTHONPATH: /home/airflow/gitsync
+    volumes:
+      - ./dags:/home/airflow/gitsync/dags
+      - ./scraper:/home/airflow/gitsync/scraper
+      - ./nlp:/home/airflow/gitsync/nlp
+      - ./db:/home/airflow/gitsync/db
+      - airflow_logs:/home/airflow/logs
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+    command: >
+      bash -c 'airflow db migrate &&
+               airflow scheduler'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8793/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === Apache Airflow Webserver (UI) ===
+  airflow-webui:
+    image: apache/airflow:2.8.0-python3.12
+    container_name: jmie-airflow-webui
+    environment:
+      AIRFLOW_HOME: ${AIRFLOW_HOME:-/home/airflow/gitsync}
+      AIRFLOW__CORE__DAGS_FOLDER: ${AIRFLOW__CORE__DAGS_FOLDER:-/home/airflow/gitsync/dags}
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-SequentialExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_AIRFLOW_USER:-airflow_user}:${POSTGRES_AIRFLOW_PASSWORD:-airflow_password}@postgres-airflow:5432/${POSTGRES_AIRFLOW_DB:-airflow_db}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-4Kt1Dxl7qZ5N6M8pL3Q9vX2wR8uI9oP5kL2mN6b5c3=}
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'false'
+      PYTHONPATH: /home/airflow/gitsync
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/home/airflow/gitsync/dags
+      - ./scraper:/home/airflow/gitsync/scraper
+      - ./nlp:/home/airflow/gitsync/nlp
+      - ./db:/home/airflow/gitsync/db
+      - airflow_logs:/home/airflow/logs
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+      airflow-scheduler:
+        condition: service_healthy
+    command: airflow webserver --port 8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === FastAPI Application ===
+  fastapi-app:
+    image: jmie/api:latest
+    container_name: jmie-fastapi
+    environment:
+      FASTAPI_HOST: ${FASTAPI_HOST:-0.0.0.0}
+      FASTAPI_PORT: ${FASTAPI_PORT:-8000}
+      FASTAPI_DEBUG: ${FASTAPI_DEBUG:-false}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres-app}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-jmie_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-jmie_db}
+      QDRANT_HOST: ${QDRANT_HOST:-qdrant}
+      QDRANT_PORT: ${QDRANT_PORT:-6333}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      PHOENIX_HOST: ${PHOENIX_HOST:-phoenix}
+      PHOENIX_PORT: ${PHOENIX_PORT:-6006}
+      PHOENIX_ENABLED: ${PHOENIX_ENABLED:-true}
+      LOG_LEVEL: ${FASTAPI_LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jmie_network
+
+  # === React Frontend (Nginx) ===
+  frontend:
+    image: jmie/frontend:latest
+    container_name: jmie-frontend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      VITE_APP_TITLE: ${VITE_APP_TITLE:-Job Market Intelligence Engine}
+      VITE_ENABLE_PHOENIX: ${VITE_ENABLE_PHOENIX:-true}
+      VITE_PHOENIX_URL: ${VITE_PHOENIX_URL:-http://localhost:6006}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - fastapi-app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jmie_network
+
+volumes:
+  postgres_app_data:
+    driver: local
+  postgres_airflow_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  mlflow_data:
+    driver: local
+  phoenix_data:
+    driver: local
+  airflow_logs:
+    driver: local
+
+networks:
+  jmie_network:
+    driver: bridge
