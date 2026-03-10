@@ -73,7 +73,12 @@ services:
     environment:
       MLFLOW_BACKEND_STORE_URI: ${MLFLOW_BACKEND_STORE_URI:-postgresql://jmie_user:password@postgres-app:5432/mlflow_db}
       MLFLOW_ARTIFACT_ROOT: ${MLFLOW_ARTIFACT_ROOT:-/data/mlflow_artifacts}
-    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri postgresql://jmie_user:${POSTGRES_PASSWORD:-password}@postgres-app:5432/mlflow_db --default-artifact-root /data/mlflow_artifacts
+    command: >
+      mlflow server 
+      --host 0.0.0.0 
+      --port 5000 
+      --backend-store-uri postgresql://jmie_user:${POSTGRES_PASSWORD:-password}@postgres-app:5432/mlflow_db 
+      --default-artifact-root /data/mlflow_artifacts
     volumes:
       - mlflow_data:/data/mlflow_artifacts
     depends_on:
@@ -127,8 +132,15 @@ services:
       postgres-airflow:
         condition: service_healthy
     command: >
-      bash -c 'airflow db migrate &&
-               airflow scheduler'
+      bash -c "airflow db migrate && 
+              airflow users create 
+              --username ${AIRFLOW_ADMIN_USER} 
+              --password ${AIRFLOW_ADMIN_PASSWORD} 
+              --firstname Admin 
+              --lastname User 
+              --role Admin 
+              --email admin@jmie.local; 
+              airflow scheduler"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8793/health"]
       interval: 30s

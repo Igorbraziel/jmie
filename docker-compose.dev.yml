@@ -3,17 +3,24 @@ version: '3.8'
 # Development overrides: source builds, hot reload, debug mode, mock data
 services:
   postgres-app:
+    env_file:
+      - .env.dev
     ports:
       - "5432:5432"
 
   postgres-airflow:
+    env_file:
+      - .env.dev
     ports:
       - "5433:5432"
 
   fastapi-app:
+    env_file:
+      - .env.dev
     build:
       context: ./api
       dockerfile: Dockerfile
+      target: development
     environment:
       FASTAPI_DEBUG: 'true'
       FASTAPI_LOG_LEVEL: DEBUG
@@ -27,9 +34,12 @@ services:
       - "8000:8000"
 
   frontend:
+    env_file:
+      - .env.dev
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: development
     environment:
       VITE_API_BASE_URL: 'http://localhost:8000'
       NODE_ENV: development
@@ -40,6 +50,8 @@ services:
       - "3000:3000"
 
   airflow-scheduler:
+    env_file:
+      - .env.dev
     environment:
       AIRFLOW__CORE__EXECUTOR: SequentialExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
@@ -51,6 +63,8 @@ services:
       - airflow_logs:/home/airflow/logs
 
   airflow-webui:
+    env_file:
+      - .env.dev
     volumes:
       - ./dags:/home/airflow/gitsync/dags
       - ./scraper:/home/airflow/gitsync/scraper

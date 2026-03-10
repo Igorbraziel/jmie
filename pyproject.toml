@@ -23,6 +23,9 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "structlog>=23.3.0",
     "requests>=2.31.0",
+    "alembic>=1.18.4",
+    "psycopg>=3.3.3",
+    "psycopg2-binary>=2.9.11",
 ]
 
 [project.optional-dependencies]
