@@ -9,6 +9,7 @@ CLAUDE.md
 # ===== ENVIRONMENT & SECRETS =====
 # Real credentials (NEVER commit these)
 .env
+.env.dev
 .env.prod
 .env.prod.local
 .env.*.local
@@ -17,14 +18,15 @@ CLAUDE.md
 .vscode/.env
 .idea/.env
 
-# AWS, GCP, and other cloud credentials
+# AWS, GCP, OCI and other cloud credentials
 *.pem
 *.key
 credentials.json
 *.json.example
 service-account.json
-.aws/credentials
+.aws/
 .gcp/
+.oci/
 gcloud-credentials/
 
 # ===== PYTHON =====
