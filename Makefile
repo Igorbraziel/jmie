@@ -21,6 +21,10 @@ up-dev: ## Start the development stack in the background
 down-dev: ## Stop and remove the development stack
 	docker compose --env-file $(ENV_DEV) -f $(COMPOSE_BASE) -f $(COMPOSE_DEV) down
 
+.PHONY: unmount-dev
+unmount-dev: ## Unmount any bind mounts used in development (use with caution)
+	docker compose --env-file $(ENV_DEV) -f $(COMPOSE_BASE) -f $(COMPOSE_DEV) down --volumes --remove-orphans
+
 .PHONY: logs-dev
 logs-dev: ## Tail logs for the development stack (use svc=fastapi-app to filter)
 	docker compose --env-file $(ENV_DEV) -f $(COMPOSE_BASE) -f $(COMPOSE_DEV) logs -f $(svc)

@@ -25,3 +25,6 @@ dev = [
     "responses>=0.24.0",
     "pytest-mock>=3.12.0",
 ]
+
+[tool.uv]
+package = true

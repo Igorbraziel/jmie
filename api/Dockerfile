@@ -3,7 +3,7 @@
 # Production-optimized with minimal image size and security best-practices
 
 # ===== Stage 1: Dependency Builder =====
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Set working directory
 WORKDIR /build
@@ -17,37 +17,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install uv package manager
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:$PATH"
+ENV PATH="/root/.local/bin:$PATH"
 
-# Copy monorepo configuration files
+# Copy monorepo configuration files and package source code.
 COPY pyproject.toml uv.lock ./
+# package source directory (needed for workspace installs)
+COPY api/ ./api/
 
-# Create virtual environment and install dependencies
-# Using --frozen to ensure exact version reproducibility
 RUN uv venv /opt/venv && \
-    uv pip install --python /opt/venv/bin/python --frozen -e .
+    . /opt/venv/bin/activate && \
+    uv sync --frozen --no-dev --package jmie-api --active
 
-# Install production dependencies (without dev dependencies)
-RUN uv pip install --python /opt/venv/bin/python --frozen \
-    fastapi \
-    uvicorn[standard] \
-    pydantic \
-    pydantic-settings \
-    sqlalchemy \
-    asyncpg \
-    bcrypt \
-    python-multipart \
-    qdrant-client \
-    structlog \
-    opentelemetry-api \
-    opentelemetry-sdk \
-    opentelemetry-exporter-trace-otlp \
-    opentelemetry-instrumentation-fastapi \
-    opentelemetry-instrumentation-sqlalchemy \
-    opentelemetry-instrumentation-requests
+# ===== Stage 2: Development Environment =====
+# This is the target your docker-compose.dev.yml is looking for!
+FROM builder AS development
 
-# ===== Stage 2: Runtime =====
-FROM python:3.12-slim
+WORKDIR /app
+ENV PATH="/opt/venv/bin:$PATH"
+
+# (Optional) You can install dev-only packages here like pytest or ruff
+# RUN uv pip install --python /opt/venv/bin/python pytest ruff
+
+# Start with hot-reload enabled
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# ===== Stage 3: Production Runtime =====
+FROM python:3.12-slim AS production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
