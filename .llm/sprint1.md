@@ -940,7 +940,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml \
 docker compose ps
 
 # Test PostgreSQL app
-docker compose exec postgres-app pg_isready -U jmie
+docker compose exec postgres-app pg_isready -U jmie_user
 
 # Test Qdrant
 curl http://localhost:6333/healthz
