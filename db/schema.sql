@@ -1,0 +1,3 @@
+-- Schema is managed entirely by Alembic migrations.
+-- Run: uv run alembic upgrade head
+-- See: db/versions/

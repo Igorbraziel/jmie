@@ -246,7 +246,6 @@ docker-compose.override.yml
 *.db
 *.sqlite
 *.sqlite3
-*.sql
 
 # PostgreSQL
 pg_stat_statements.sql
