@@ -27,7 +27,21 @@ COPY . .
 # NODE_ENV=production enables optimizations like minification
 RUN NODE_ENV=production npm run build
 
-# ===== Stage 2: Serve with Nginx =====
+# ===== Stage 2: Development Runtime =====
+FROM node:18-alpine AS development
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]
+
+# ===== Stage 3: Serve with Nginx =====
 FROM nginx:alpine
 
 # Set environment variables
