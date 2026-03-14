@@ -114,12 +114,14 @@ services:
     image: apache/airflow:2.8.0-python3.11
     container_name: jmie-airflow-scheduler
     environment:
-      AIRFLOW_HOME: ${AIRFLOW_HOME:-/home/airflow/gitsync}
+      AIRFLOW_HOME: ${AIRFLOW_HOME:-/home/airflow/airflow-home}
       AIRFLOW__CORE__DAGS_FOLDER: ${AIRFLOW__CORE__DAGS_FOLDER:-/home/airflow/gitsync/dags}
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-SequentialExecutor}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_AIRFLOW_USER:-airflow_user}:${POSTGRES_AIRFLOW_PASSWORD:-airflow_password}@postgres-airflow:5432/${POSTGRES_AIRFLOW_DB:-airflow_db}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_AIRFLOW_USER:-airflow_user}:${POSTGRES_AIRFLOW_PASSWORD:-airflow_password}@jmie-postgres-airflow:5432/${POSTGRES_AIRFLOW_DB:-airflow_db}
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-4Kt1Dxl7qZ5N6M8pL3Q9vX2wR8uI9oP5kL2mN6b5c3=}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}      
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-secret}
       PYTHONPATH: /home/airflow/gitsync
     volumes:
       - ./dags:/home/airflow/gitsync/dags
@@ -133,12 +135,12 @@ services:
     command: >
       bash -c "airflow db migrate && 
               airflow users create 
-              --username ${AIRFLOW_ADMIN_USER} 
-              --password ${AIRFLOW_ADMIN_PASSWORD} 
+              --username $${AIRFLOW_ADMIN_USER} 
+              --password $${AIRFLOW_ADMIN_PASSWORD} 
               --firstname Admin 
               --lastname User 
               --role Admin 
-              --email admin@jmie.local; 
+              --email admin@jmie.local || true; 
               airflow scheduler"
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$(hostname)\" || exit 1"]
@@ -157,7 +159,7 @@ services:
       AIRFLOW_HOME: ${AIRFLOW_HOME:-/home/airflow/gitsync}
       AIRFLOW__CORE__DAGS_FOLDER: ${AIRFLOW__CORE__DAGS_FOLDER:-/home/airflow/gitsync/dags}
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-SequentialExecutor}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_AIRFLOW_USER:-airflow_user}:${POSTGRES_AIRFLOW_PASSWORD:-airflow_password}@postgres-airflow:5432/${POSTGRES_AIRFLOW_DB:-airflow_db}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_AIRFLOW_USER:-airflow_user}:${POSTGRES_AIRFLOW_PASSWORD:-airflow_password}@jmie-postgres-airflow:5432/${POSTGRES_AIRFLOW_DB:-airflow_db}
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-4Kt1Dxl7qZ5N6M8pL3Q9vX2wR8uI9oP5kL2mN6b5c3=}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'false'
@@ -235,7 +237,7 @@ services:
     depends_on:
       - fastapi-app
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -49,20 +49,40 @@ services:
     env_file:
       - .env.dev
     environment:
+      AIRFLOW_HOME: /home/airflow/airflow-home
+      AIRFLOW__CORE__DAGS_FOLDER: /home/airflow/gitsync/dags
       AIRFLOW__CORE__EXECUTOR: SequentialExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /home/airflow/logs
+      AIRFLOW__SCHEDULER__CHILD_PROCESS_LOG_DIRECTORY: /home/airflow/logs/scheduler
       JMIE_USE_MOCK_SCRAPER: 'true'
     volumes:
       - ./dags:/home/airflow/gitsync/dags
       - ./scraper:/home/airflow/gitsync/scraper
       - ./nlp:/home/airflow/gitsync/nlp
       - ./logs/airflow:/home/airflow/logs
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+    networks:
+      - jmie_network
 
   airflow-webui:
     env_file:
       - .env.dev
+    environment:
+      AIRFLOW_HOME: /home/airflow/airflow-home
+      AIRFLOW__CORE__DAGS_FOLDER: /home/airflow/gitsync/dags
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /home/airflow/logs
     volumes:
       - ./dags:/home/airflow/gitsync/dags
       - ./scraper:/home/airflow/gitsync/scraper
       - ./nlp:/home/airflow/gitsync/nlp
       - ./logs/airflow:/home/airflow/logs
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+      airflow-scheduler:
+        condition: service_healthy
+    networks:
+      - jmie_network

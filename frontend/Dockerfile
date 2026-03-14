@@ -3,7 +3,7 @@
 # Production-optimized with minimal image size and security best-practices
 
 # ===== Stage 1: Build React App =====
-FROM node:18-alpine as builder
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /build
