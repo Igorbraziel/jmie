@@ -111,7 +111,7 @@ services:
 
   # === Apache Airflow Scheduler ===
   airflow-scheduler:
-    image: apache/airflow:2.8.0-python3.12
+    image: apache/airflow:2.8.0-python3.11
     container_name: jmie-airflow-scheduler
     environment:
       AIRFLOW_HOME: ${AIRFLOW_HOME:-/home/airflow/gitsync}
@@ -141,16 +141,17 @@ services:
               --email admin@jmie.local; 
               airflow scheduler"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8793/health"]
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$(hostname)\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 30s
     networks:
       - jmie_network
 
   # === Apache Airflow Webserver (UI) ===
   airflow-webui:
-    image: apache/airflow:2.8.0-python3.12
+    image: apache/airflow:2.8.0-python3.11
     container_name: jmie-airflow-webui
     environment:
       AIRFLOW_HOME: ${AIRFLOW_HOME:-/home/airflow/gitsync}
