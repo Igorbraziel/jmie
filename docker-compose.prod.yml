@@ -58,7 +58,7 @@ services:
     env_file:
       - .env.prod
     restart: always
-    image: ${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID}/jmie/api:latest
+    image: ${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REGISTRY_REPO:-jmie}/api:latest
     environment:
       FASTAPI_DEBUG: 'false'
       FASTAPI_LOG_LEVEL: INFO
@@ -78,7 +78,7 @@ services:
     env_file:
       - .env.prod
     restart: always
-    image: ${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID}/jmie/frontend:latest
+    image: ${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REGISTRY_REPO:-jmie}/frontend:latest
     environment:
       NODE_ENV: production
     logging:

@@ -42,7 +42,7 @@ EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
 # ===== Stage 3: Serve with Nginx =====
-FROM nginx:alpine
+FROM nginx:alpine AS production
 
 # Set environment variables
 ENV NODE_ENV=production
