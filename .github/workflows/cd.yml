@@ -15,11 +15,10 @@ concurrency:
 permissions:
   contents: read
 
-
-# 1. JOB - BUILD AND PUSH
 jobs:
+  # 1. JOB - BUILD AND PUSH (Fast API and Frontend images for both - 'amd64' and 'arm64')
   build-and-push:
-    name: "Build & Push Docker Image"
+    name: "Build & Push Docker Images"
     runs-on: ubuntu-latest
 
     outputs:
@@ -32,11 +31,20 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Generate image metadata
-        id: meta
+      - name: Generate API image metadata
+        id: meta_api
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/jmie/api
+          images: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}/api
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Generate Frontend image metadata
+        id: meta_frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}/frontend
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
@@ -52,3 +60,180 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker layer cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ github.ref_name }}-
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./api/Dockerfile
+          target: production
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=
+          provenance: false
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./Dockerfile
+          target: production
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=
+          provenance: false
+      
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Print image summary
+        run: |
+          echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| api:latest | \`${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}/api:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| api:sha | \`${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}/api:sha-${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| frontend:latest | \`${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}/frontend:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| frontend:sha | \`${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REGISTRY_REPO }}/frontend:sha-${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: \`${{ github.sha }}\` by **${{ github.actor }}**" >> $GITHUB_STEP_SUMMARY
+
+  # 2. JOB - DEPLOY
+  deploy:
+    name: "Deploy to Oracle VM" 
+    runs-on: ubuntu-latest
+
+    needs: build-and-push
+
+    environment:
+      name: production
+      api-url: http://${{ secrets.ORACLE_VM_IP }}:8000/health
+      frontend-url: http://${{ secrets.ORACLE_VM_IP }}:3000/
+      
+    steps:
+      - name: Deploy to Oracle VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.ORACLE_VM_IP }}
+          username: ubuntu
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            echo "════════════════════════════════════════"
+            echo " JMIE Deployment"
+            echo " Commit : ${{ github.sha }}"
+            echo " By     : ${{ github.actor }}"
+            echo " Time   : $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "════════════════════════════════════════"
+
+            cd /home/ubuntu/jmie
+
+            git pull origin main
+
+            gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+            echo ""
+            echo "--- Pulling new images ---"
+
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              pull fastapi-app frontend
+
+            echo ""
+            echo "--- Restarting API and Frontend ---"
+
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              up -d --no-deps --no-build fastapi-app frontend
+
+             echo ""
+            echo "--- Waiting for API to become healthy ---"
+ 
+            timeout 60 bash -c '
+              until docker inspect jmie-fastapi \
+                --format "{{.State.Health.Status}}" 2>/dev/null | grep -q "healthy"; do
+                echo "  Still starting..."
+                sleep 3
+              done
+            '
+
+            echo ""
+            echo "--- Container status ---"
+
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+
+            echo ""
+            echo "════════════════════════════════════════"
+            echo " Deployment complete ✅"
+            echo "════════════════════════════════════════"
+
+      - name: Smoke test - API
+        run: |
+          echo "Smoke testing http://${{ secrets.ORACLE_VM_IP }}:8000/health"
+
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            --retry 3 \
+            --retry-delay 5 \
+            http://${{ secrets.ORACLE_VM_IP }}:8000/health)
+
+          if [ "$response" = "200" ]; then
+            echo "✅ API smoke test passed — HTTP $response"
+            echo "### ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| API | ✅ HTTP $response |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ API smoke test failed — HTTP $response"
+            echo "### ❌ Deployment Failed — API returned HTTP $response" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Smoke test - Frontend
+        run: |
+          echo "Somke testing http://${{ secrets.ORACLE_VM_IP }}:3000"
+
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            --retry 3 \
+            --retry-delay 5 \
+            http://${{ secrets.ORACLE_VM_IP }}:3000)
+ 
+          if [ "$response" = "200" ]; then
+            echo "✅ Frontend smoke test passed — HTTP $response"
+          else
+            echo "❌ Frontend smoke test failed — HTTP $response"
+            exit 1
+          fi
