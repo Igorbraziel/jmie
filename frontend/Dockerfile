@@ -56,25 +56,21 @@ RUN apk add --no-cache \
     curl \
     tini
 
-# Create non-root user for security
-RUN addgroup -g 101 -S nginx-app && \
-    adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx-app -g "nginx app" _nginx-app
-
 # Copy Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built application from builder stage
-COPY --from=builder --chown=_nginx-app:nginx-app /build/dist /usr/share/nginx/html
+COPY --from=builder --chown=nginx:nginx /build/dist /usr/share/nginx/html
 
 # Copy any static assets (if they exist)
 RUN if [ -d public ]; then cp -r public/. /usr/share/nginx/html/; fi && \
-    chown -R _nginx-app:nginx-app /usr/share/nginx/html
+    chown -R nginx:nginx /usr/share/nginx/html
 
 # Change ownership of nginx cache and pid directories
-RUN chown -R _nginx-app:nginx-app /var/cache/nginx /run /var/log/nginx
+RUN chown -R nginx:nginx /var/cache/nginx /run /var/log/nginx
 
 # Create nginx worker directory
-RUN mkdir -p /var/run/nginx && chown -R _nginx-app:nginx-app /var/run/nginx
+RUN mkdir -p /var/run/nginx && chown -R nginx:nginx /var/run/nginx
 
 # Expose port
 EXPOSE 3000
