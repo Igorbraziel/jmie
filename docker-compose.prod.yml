@@ -6,7 +6,7 @@ services:
       - .env.prod
     restart: always
     environment:
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --max_connections=200"
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
 
   postgres-airflow:
     env_file:
