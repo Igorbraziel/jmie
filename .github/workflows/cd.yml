@@ -22,8 +22,8 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
-      image_uri: ${{ steps.meta.outputs.tags }}
+      image_tag: ${{ steps.meta_api.outputs.version }}
+      image_uri: ${{ steps.meta_api.outputs.tags }}
 
     steps:
       - name: Checkout code
@@ -80,10 +80,10 @@ jobs:
           file: ./api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta_api.outputs.tags }}
+          labels: ${{ steps.meta_api.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           provenance: false
 
       - name: Build and push Frontend image
@@ -94,10 +94,10 @@ jobs:
           target: production
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta_frontend.outputs.tags }}
+          labels: ${{ steps.meta_frontend.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           provenance: false
       
       - name: Move cache
@@ -221,7 +221,7 @@ jobs:
 
       - name: Smoke test - Frontend
         run: |
-          echo "Somke testing http://${{ secrets.ORACLE_VM_IP }}:3000"
+          echo "Smoke testing http://${{ secrets.ORACLE_VM_IP }}:3000"
 
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time 15 \
