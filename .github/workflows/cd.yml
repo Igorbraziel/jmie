@@ -128,7 +128,7 @@ jobs:
 
     environment:
       name: production
-      url: http://${{ secrets.ORACLE_VM_IP }}:8000/health
+      url: http://${{ vars.ORACLE_VM_IP }}:8000/health
       
     steps:
       - name: Deploy to Oracle VM
