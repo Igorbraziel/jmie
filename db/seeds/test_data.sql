@@ -1,2 +1,0 @@
--- Test seed data — populated in Sprint 2 once schema migrations exist.
--- Requires: alembic upgrade head to have been run first.
