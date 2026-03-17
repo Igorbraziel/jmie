@@ -1,0 +1,25 @@
+[project]
+name = "jmie-db"
+version = "0.1.0"
+description = "JMIE database migrations and seeds"
+requires-python = ">=3.12"
+dependencies = [
+    # Migration engine
+    "alembic>=1.13.0",
+    # PostgreSQL driver (binary = no system deps needed)
+    "psycopg2-binary>=2.9.0",
+    # ORM — used for model definitions and type mapping in migrations
+    "sqlalchemy>=2.0.0",
+    # Shared with root: structured logging
+    "structlog>=23.3.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["db"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

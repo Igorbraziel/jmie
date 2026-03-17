@@ -44,6 +44,7 @@ members = [
     "scraper",
     "nlp",
     "dags",
+    "db",
 ]
 
 [tool.ruff]
@@ -72,10 +73,6 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "E741",   # ambiguous variable name
 ]
-
-[tool.ruff.lint.isort]
-profile = "black"
-line-length = 100
 
 [tool.mypy]
 python_version = "3.12"

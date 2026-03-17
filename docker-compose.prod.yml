@@ -86,3 +86,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  db-migrations:
+    image: ${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REGISTRY_REPO:-jmie}/db:latest
+    restart: "no" 

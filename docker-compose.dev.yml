@@ -86,3 +86,10 @@ services:
         condition: service_healthy
     networks:
       - jmie_network
+
+  db-migrations:
+    build:
+      context: .
+      dockerfile: db/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://POSTGRESUSER:−jmieuser:{POSTGRES_USER:-jmie_user}:POSTGRESU​SER:−jmieu​ser:{POSTGRES_PASSWORD:-password}@postgres-app:5432/${POSTGRES_DB:-jmie_db}

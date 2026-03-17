@@ -11,6 +11,7 @@ members = [
     "jmie",
     "jmie-api",
     "jmie-dags",
+    "jmie-db",
     "jmie-nlp",
     "jmie-scraper",
 ]
@@ -1889,7 +1890,6 @@ name = "jmie-api"
 version = "0.1.0"
 source = { editable = "api" }
 dependencies = [
-    { name = "alembic" },
     { name = "asyncpg" },
     { name = "bcrypt" },
     { name = "fastapi" },
@@ -1899,7 +1899,6 @@ dependencies = [
     { name = "opentelemetry-instrumentation-requests" },
     { name = "opentelemetry-instrumentation-sqlalchemy" },
     { name = "opentelemetry-sdk" },
-    { name = "psycopg2-binary" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -1913,7 +1912,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.18.4" },
     { name = "asyncpg", specifier = ">=0.29.0" },
     { name = "bcrypt", specifier = ">=4.0.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
@@ -1923,7 +1921,6 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-requests", specifier = ">=0.41.0" },
     { name = "opentelemetry-instrumentation-sqlalchemy", specifier = ">=0.41.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
-    { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
@@ -1976,6 +1973,25 @@ requires-dist = [
     { name = "structlog", specifier = ">=23.3.0" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "jmie-db"
+version = "0.1.0"
+source = { editable = "db" }
+dependencies = [
+    { name = "alembic" },
+    { name = "psycopg2-binary" },
+    { name = "sqlalchemy" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.13.0" },
+    { name = "psycopg2-binary", specifier = ">=2.9.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.0" },
+    { name = "structlog", specifier = ">=23.3.0" },
+]
 
 [[package]]
 name = "jmie-nlp"

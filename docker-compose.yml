@@ -238,6 +238,20 @@ services:
     networks:
       - jmie_network
 
+    # === Database Migrations (runs once, then exits) ===
+  db-migrations:
+    image: jmie/db:latest
+    container_name: jmie-db-migrations
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jmie_user}:${POSTGRES_PASSWORD:-secure_random_password}@postgres-app:5432/${POSTGRES_DB:-jmie_db}
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+    networks:
+      - jmie_network
+    profiles:
+      - migrations
+
 volumes:
   postgres_app_data:
     driver: local
