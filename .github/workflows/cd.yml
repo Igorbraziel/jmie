@@ -170,12 +170,12 @@ jobs:
             echo ""
             echo "Running database migrations (if needed)..."
 
-            docker exec jmie-fastapi alembic upgrade head || echo "No migrations needed or failed to run"
-
-            echo ""
-            echo "Seeding sources table..."
-            
-            docker exec jmie-fastapi python db/seeds/01_seed_sources.py
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              run --rm --no-deps fastapi-app \
+              bash scripts/migrate.sh
 
             echo ""
             echo "--- Container status ---"
