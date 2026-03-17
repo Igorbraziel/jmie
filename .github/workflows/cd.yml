@@ -139,6 +139,16 @@ jobs:
             gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
             echo ""
+            echo "Running database migrations (if needed)..."
+
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              run --rm --no-deps fastapi-app \
+              bash scripts/migrate.sh
+
+            echo ""
             echo "--- Pulling new images ---"
 
             docker compose \
@@ -166,16 +176,6 @@ jobs:
                 sleep 3
               done
             '
-
-            echo ""
-            echo "Running database migrations (if needed)..."
-
-            docker compose \
-              -f docker-compose.yml \
-              -f docker-compose.prod.yml \
-              --env-file .env.prod \
-              run --rm --no-deps fastapi-app \
-              bash scripts/migrate.sh
 
             echo ""
             echo "--- Container status ---"

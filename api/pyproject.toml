@@ -27,8 +27,6 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.41.0",
     "opentelemetry-instrumentation-requests>=0.41.0",
     "sentry-sdk>=2.54.0",
-    "alembic>=1.18.4",
-    "psycopg2-binary>=2.9.11",
 ]
 
 [tool.hatch.build.targets.wheel]
