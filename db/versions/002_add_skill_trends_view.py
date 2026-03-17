@@ -20,9 +20,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    pass
+    op.execute("""
+        CREATE VIEW skill_trends AS
+        SELECT
+            DATE(scraped_at) AS scraped_date,
+            source_id,
+            COUNT(id) AS total_jobs
+        FROM jobs
+        GROUP BY DATE(scraped_at), source_id; 
+    """)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    pass
+    op.execute("""
+        DROP VIEW IF EXISTS skill_trends;
+    """)

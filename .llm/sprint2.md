@@ -65,25 +65,26 @@ Add indexes on: `source_id`, `company_id`, `url`, `posted_date`, `created_at`.
 
 1. **Initialize Alembic in `db/` directory** (if not already done):
    ```bash
+   uv add alembic
    cd db
-   alembic init .
+   uv run alembic init .
    ```
 
 2. **Create initial migration**:
    ```bash
-   alembic revision --autogenerate -m "create_sources_companies_jobs_tables"
+   uv run alembic revision --autogenerate -m "initial_schema"
    ```
 
-3. **Edit the migration file** (`db/versions/00XX_create_*.py`) to include `sources`, `companies`, `jobs` table definitions with constraints and indexes.
+3. **Edit the migration file** (`db/versions/00XX_initial_*.py`) to include `sources`, `companies`, `jobs` table definitions with constraints and indexes.
 
 4. **Apply migration**:
    ```bash
-   alembic upgrade head
+   uv run alembic upgrade head
    ```
 
 5. **Verify schema** in PostgreSQL:
    ```bash
-   psql -U postgres -d jmie -c "\dt"
+   docker exec -it jmie-postgres-app psql -U jmie_user -d jmie_db -c "\dt"
    ```
 
 ### Step 1.3: Seed Source Data
@@ -93,8 +94,8 @@ Create a seed migration or manual SQL insert to populate the `sources` table wit
 **Example sources to seed:**
 - `LinkedIn EN` (source_id=1) — country="US", language="en"
 - `Gupy PT` (source_id=2) — country="BR", language="pt"
-- (Optional) `Remote.ok EN` — country="Global", language="en"
-- (Optional) `Catho PT` — country="BR", language="pt"
+- `Remote.ok EN` — country="Global", language="en"
+- `ProgramaThor PT` — country="BR", language="pt"
 
 **Seed via migration**:
 ```sql

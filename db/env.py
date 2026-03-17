@@ -17,6 +17,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 if ENV == 'development':
     load_dotenv(BASE_DIR / '.env.dev')
+    if not Path('/.dockerenv').exists():
+        os.environ['POSTGRES_HOST'] = 'localhost'
+        print("🔧 Alembic: Running outside Docker. Routed POSTGRES_HOST to localhost.")
 elif ENV == 'production':
     load_dotenv(BASE_DIR / '.env.prod')
 
