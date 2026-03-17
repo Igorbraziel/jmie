@@ -90,13 +90,6 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
           provenance: false
-      
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache-api
-          mv /tmp/.buildx-cache-api-new /tmp/.buildx-cache-api
-          rm -rf /tmp/.buildx-cache-frontend
-          mv /tmp/.buildx-cache-frontend-new /tmp/.buildx-cache-frontend
 
       - name: Print image summary
         run: |
