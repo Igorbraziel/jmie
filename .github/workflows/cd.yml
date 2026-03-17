@@ -64,17 +64,6 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
-      - name: Set up Docker layer cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            /tmp/.buildx-cache-api
-            /tmp/.buildx-cache-frontend
-          key: ${{ runner.os }}-buildx-${{ github.ref_name }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ github.ref_name }}-
-            ${{ runner.os }}-buildx-
-
       - name: Build and push API image
         uses: docker/build-push-action@v6
         with:
@@ -84,8 +73,8 @@ jobs:
           push: true
           tags: ${{ steps.meta_api.outputs.tags }}
           labels: ${{ steps.meta_api.outputs.labels }}
-          cache-from: type=local,src=/tmp/.buildx-cache-api
-          cache-to: type=local,dest=/tmp/.buildx-cache-api-new,mode=max
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
           provenance: false
 
       - name: Build and push Frontend image
@@ -98,8 +87,8 @@ jobs:
           push: true
           tags: ${{ steps.meta_frontend.outputs.tags }}
           labels: ${{ steps.meta_frontend.outputs.labels }}
-          cache-from: type=local,src=/tmp/.buildx-cache-frontend
-          cache-to: type=local,dest=/tmp/.buildx-cache-frontend-new,mode=max
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
           provenance: false
       
       - name: Move cache
@@ -140,7 +129,6 @@ jobs:
           host: ${{ secrets.ORACLE_VM_IP }}
           username: ubuntu
           key: ${{ secrets.ORACLE_SSH_KEY }}
-          script_stop: true
           script: |
             set -euo pipefail
 
