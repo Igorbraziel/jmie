@@ -156,7 +156,7 @@ jobs:
               --env-file .env.prod \
               up -d --no-deps --no-build fastapi-app frontend
 
-             echo ""
+            echo ""
             echo "--- Waiting for API to become healthy ---"
  
             timeout 60 bash -c '
@@ -166,6 +166,11 @@ jobs:
                 sleep 3
               done
             '
+
+            echo ""
+            echo "Running database migrations (if needed)..."
+            
+            docker exec jmie-fastapi alembic upgrade head || echo "No migrations needed or failed to run"
 
             echo ""
             echo "--- Container status ---"
