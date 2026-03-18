@@ -128,14 +128,14 @@ services:
         condition: service_healthy
     command: >
       bash -c "airflow db migrate && 
-              airflow users create 
-              --username $${AIRFLOW_ADMIN_USER} 
-              --password $${AIRFLOW_ADMIN_PASSWORD} 
-              --firstname Admin 
-              --lastname User 
-              --role Admin 
-              --email admin@jmie.local || true; 
-              airflow scheduler"
+      airflow users create 
+      --username $${AIRFLOW_ADMIN_USER} 
+      --password $${AIRFLOW_ADMIN_PASSWORD} 
+      --firstname Admin 
+      --lastname User 
+      --role Admin 
+      --email admin@jmie.local || true; 
+      airflow scheduler"
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$(hostname)\" || exit 1"]
       interval: 30s

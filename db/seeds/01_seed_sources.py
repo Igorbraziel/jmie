@@ -19,7 +19,9 @@ db_user = os.getenv('POSTGRES_USER', default='jmie_user')
 db_password = os.getenv('POSTGRES_PASSWORD')
 db_name = os.getenv('POSTGRES_DB', default='jmie_db')
 
-DATABASE_URL = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    DATABASE_URL = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
 
 def seed_sources():
     engine = sa.create_engine(DATABASE_URL)
