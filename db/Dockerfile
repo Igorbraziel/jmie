@@ -19,11 +19,12 @@ COPY nlp/pyproject.toml ./nlp/
 COPY dags/pyproject.toml ./dags/
 
 RUN uv venv /opt/venv \
+    && . /opt/venv/bin/activate \
     && uv sync \
         --frozen \
         --no-dev \
-        --no-install-workspace \
-        --python /opt/venv/bin/python
+        --package jmie-db \
+        --active
 
 ENV PATH="/opt/venv/bin:$PATH"
 
