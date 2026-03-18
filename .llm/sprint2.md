@@ -63,26 +63,22 @@ Add indexes on: `source_id`, `company_id`, `url`, `posted_date`, `created_at`.
 
 ### Step 1.2: Create Alembic Migration
 
-1. **Initialize Alembic in `db/` directory** (if not already done):
+1. **Create initial migration** via `uv` in the local DB environment:
    ```bash
-   uv add alembic
    cd db
-   uv run alembic init .
-   ```
-
-2. **Create initial migration**:
-   ```bash
    uv run alembic revision --autogenerate -m "initial_schema"
    ```
 
-3. **Edit the migration file** (`db/versions/00XX_initial_*.py`) to include `sources`, `companies`, `jobs` table definitions with constraints and indexes.
+2. **Edit the migration file** (`db/versions/00XX_initial_*.py`) to include `sources`, `companies`, `jobs` table definitions with constraints and indexes.
 
-4. **Apply migration**:
+3. **Apply migration** using the dedicated `db-migrations` service profile:
    ```bash
-   uv run alembic upgrade head
+   # Run the migrations container from the project root
+   cd ..
+   docker compose --profile migrations up db-migrations
    ```
 
-5. **Verify schema** in PostgreSQL:
+4. **Verify schema** in PostgreSQL:
    ```bash
    docker exec -it jmie-postgres-app psql -U jmie_user -d jmie_db -c "\dt"
    ```
@@ -655,12 +651,12 @@ ALTER TABLE jobs ADD CONSTRAINT unique_url_per_source UNIQUE (url, source_id);
 
 2. **Apply migrations**:
    ```bash
-   docker exec jmie-postgres alembic upgrade head
+   docker compose --profile migrations -f docker-compose.yml -f docker-compose.dev.yml up db-migrations
    ```
 
 3. **Seed sources**:
    ```bash
-   docker exec jmie-postgres psql -U postgres -d jmie -c "INSERT INTO sources (name, url, country, language, created_at, updated_at) VALUES ('LinkedIn EN', 'https://linkedin.com', 'US', 'en', NOW(), NOW());"
+   docker exec jmie-postgres-app psql -U jmie_user -d jmie_db -c "INSERT INTO sources (name, url, country, language, created_at, updated_at) VALUES ('LinkedIn EN', 'https://linkedin.com', 'US', 'en', NOW(), NOW());"
    ```
 
 4. **Trigger DAG manually**:
