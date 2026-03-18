@@ -1,24 +1,4 @@
 #!/usr/bin/env bash
-# ══════════════════════════════════════════════════════════════════════
-# db/scripts/init.sh — Database initialisation script
-# ══════════════════════════════════════════════════════════════════════
-#
-# Runs on every deployment (via the db-migrations container) to ensure
-# the database schema is up to date and seed data is present.
-#
-# Both steps are fully IDEMPOTENT:
-#   - Alembic tracks which migrations have already run in the
-#     alembic_version table and only applies new ones
-#   - Seeds use INSERT ... ON CONFLICT DO NOTHING so existing rows
-#     are never duplicated
-#
-# Usage (via Docker):
-#   docker compose run --rm db-migrations
-#
-# Usage (locally with uv):
-#   DATABASE_URL=postgresql://... uv run bash db/scripts/init.sh
-# ══════════════════════════════════════════════════════════════════════
-
 set -euo pipefail
 
 # ── Validate environment ──────────────────────────────────────────────────────

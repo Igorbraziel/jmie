@@ -51,7 +51,12 @@ logs-prod: ## Tail logs for the production stack
 
 .PHONY: migrate
 migrate: ## Run Alembic migrations to update the database to the latest schema
-	uv run alembic upgrade head
+	docker compose \
+ 		-f docker-compose.yml \
+ 		-f docker-compose.dev.yml \
+ 		--env-file .env.dev \
+ 		--profile migrations \
+ 		run --rm db-migrations
 
 .PHONY: downgrade
 downgrade: ## Undo the last Alembic migration
