@@ -12,6 +12,8 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     # Shared with root: structured logging
     "structlog>=23.3.0",
+    # Environment variables
+    "python-dotenv>=1.0.0",
 ]
 
 [tool.uv]
