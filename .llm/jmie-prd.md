@@ -425,6 +425,7 @@ AWS is used exclusively for S3 and CloudWatch. No EC2, no RDS, no managed servic
 | `mlflow` | `ghcr.io/mlflow/mlflow:latest` | `5000` | MLflow tracking server. Experiment history, model registry, and artifact store. Backend store and artifact root both persisted to named Docker volumes (artifact root optionally backed by S3). |
 | `phoenix` | `arizephoenix/phoenix:latest` | `6006` | Arize Phoenix LLM/RAG observability server. Receives OpenTelemetry traces from the FastAPI RAG pipeline. Stores trace history in a named Docker volume. UI restricted to trusted IPs. |
 | `frontend` | `jmie/frontend:latest` | `3000` | Nginx serving the React SPA static build. Proxies `/api/*` to `fastapi-app` internally. Public-facing alongside the API. |
+| `db-migrations` | `jmie/db:latest` | — | Database migrations container. Runs Alembic to apply schema updates and seed scripts, then exits. Invoked via the `migrations` Docker profile. |
 
 ### 4.7 Network & Security Configuration (Summary)
 
@@ -532,15 +533,15 @@ jmie/
 │       ├── database.py             # SQLAlchemy async session factory
 │       └── logging.py              # structlog JSON logging configuration
 │
-├── db/                             # Database schema management
-│   ├── migrations/                 # Alembic migration scripts
-│   │   └── versions/
-│   │       ├── 001_initial_schema.py
-│   │       ├── 002_add_skill_trends_view.py
-│   │       └── 003_add_language_column.py   # Adds `language` field to jobs + skills tables
-│   ├── schema.sql                  # Reference DDL for all tables and views
-│   └── seeds/
-│       └── test_data.sql           # Minimal seed data for local development
+├── db/                             # Database schema management (Alembic)
+│   ├── Dockerfile                  # Builds db-migrations container
+│   ├── pyproject.toml              # Dependencies (alembic, psycopg2-binary, etc.)
+│   ├── alembic.ini                 # Alembic configuration
+│   ├── env.py                      # SQLAlchemy/Alembic environment configuration
+│   ├── init/                       # Initialisation SQL scripts (e.g. mlflow_db.sql)
+│   ├── scripts/                    # Helper scripts for the container lifecycle
+│   ├── seeds/                      # Data seeding scripts
+│   └── versions/                   # Generated Alembic migration revisions
 │
 ├── infrastructure/                 # Cloud provider configuration (all three)
 │   ├── oracle/

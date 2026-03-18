@@ -712,6 +712,17 @@ services:
     networks: [jmie-net]
     depends_on:
       - fastapi-app
+
+  db-migrations:
+    image: jmie/db:latest
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER}:${POSTGRES_APP_PASSWORD}@postgres-app:5432/${POSTGRES_APP_DB}
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+    networks: [jmie-net]
+    profiles:
+      - migrations
 EOF
 ```
 
@@ -744,6 +755,11 @@ services:
   postgres-app:
     ports:
       - "${POSTGRES_APP_PORT}:5432"  # expose locally for DB tools
+
+  db-migrations:
+    build:
+      context: .
+      dockerfile: db/Dockerfile
 EOF
 ```
 
@@ -781,6 +797,9 @@ services:
 
   airflow-webserver:
     restart: always
+
+  db-migrations:
+    image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REPO}/db:latest
 EOF
 ```
 
@@ -792,7 +811,24 @@ These are minimal stubs — the real implementations come in Sprint 4 (FastAPI) 
 
 ```bash
 # Create directory structure
-mkdir -p api frontend dags
+mkdir -p api frontend dags db
+
+# DB placeholder Dockerfile
+cat > db/Dockerfile << 'EOF'
+FROM python:3.12-slim
+WORKDIR /app
+COPY . .
+CMD ["echo", "Migrations standalone container"]
+EOF
+
+# DB placeholder pyproject.toml
+cat > db/pyproject.toml << 'EOF'
+[project]
+name = "jmie-db"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["alembic>=1.13.0"]
+EOF
 
 # FastAPI placeholder Dockerfile
 mkdir -p api
