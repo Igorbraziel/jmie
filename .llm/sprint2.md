@@ -75,7 +75,12 @@ Add indexes on: `source_id`, `company_id`, `url`, `posted_date`, `created_at`.
    ```bash
    # Run the migrations container from the project root
    cd ..
-   docker compose --profile migrations up db-migrations
+   docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.dev.yml \
+    --env-file .env.dev \
+    --profile migrations \
+    run --rm db-migrations
    ```
 
 4. **Verify schema** in PostgreSQL:
