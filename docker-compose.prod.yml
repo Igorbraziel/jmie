@@ -89,4 +89,8 @@ services:
 
   db-migrations:
     image: ${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REGISTRY_REPO:-jmie}/db:latest
-    restart: "no" 
+    restart: "no"
+    env_file:
+      - .env.prod
+    profiles:
+      - migrations

@@ -91,5 +91,7 @@ services:
     build:
       context: .
       dockerfile: db/Dockerfile
+    env_file:
+      - .env.dev
     environment:
-      DATABASE_URL: postgresql://POSTGRESUSER:−jmieuser:{POSTGRES_USER:-jmie_user}:POSTGRESU​SER:−jmieu​ser:{POSTGRES_PASSWORD:-password}@postgres-app:5432/${POSTGRES_DB:-jmie_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jmie_user}:${POSTGRES_PASSWORD:-password}@postgres-app:5432/${POSTGRES_DB:-jmie_db}
