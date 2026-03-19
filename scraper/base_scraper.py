@@ -1,4 +1,5 @@
 import requests
+import random
 from urllib3.util.retry import Retry
 
 from abc import ABC, abstractmethod
@@ -7,20 +8,43 @@ from typing import List, Dict, Any
 
 class BaseScraper(ABC):
     """Abtract class for all job board scrapers"""
-    def __init__(self, source_id: str, source_language: str):
-        self.source_id = source_id
+    def __init__(self, source_name: str, source_language: str):
+        self.source_name = source_name
         self.source_language = source_language
         self.session = self._create_resilient_session()
 
     @staticmethod
     def _create_resilient_session() -> requests.Session:
         session = requests.Session()
+
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15"
+        ]
+
+        session.headers.update({
+            "User-Agent": random.choice(user_agents),
+            "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1"
+        })
+        
         retry_strategy = Retry(
             total=3,
             backoff_factor=2,
             allowed_methods=['GET'],
-            status_forcelist=[429, 500, 502, 503, 504]
+            status_forcelist=[429, 500, 502, 503, 504],
+            respect_retry_after_header=True
         )
+
         adapter = requests.adapters.HTTPAdapter(max_retries=retry_strategy)
 
         session.mount('http://', adapter)
@@ -29,43 +53,11 @@ class BaseScraper(ABC):
         return session
 
     @abstractmethod
-    def fetch(self) -> List[str]:
-        """Fetch raw HTML or JSON from the job board. Must return list of page contents."""
+    def fetch(self, search_params: Any) -> Any:
+        """Fetch raw HTML or JSON from the job board."""
         pass
 
     @abstractmethod
-    def parse(self, content: str) -> List[Dict[str, Any]]:
-        """Parse the content into structured job posting dicts"""
+    def parse(self, html_content: str) -> Any:
+        """Parse the HTML content."""
         pass
-
-
-    def scrape(self):
-        """Main operation. Return the extracted jobs in the right format"""
-        try:
-            raw_content = self.fetch()
-            jobs = []
-            for content in raw_content:
-                job_list = self.parse(content)
-                jobs.extend(job_list)
-            return self._normalize(jobs)
-        except Exception as e:
-            print(f'Error: {e}\n while scraping from source: {self.source_id}, language: {self.source_language}')
-            return []
-
-    def _normalize(self, jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        return [
-            {
-                "source_id": self.source_id,
-                "company_id": job.get("company_id"),
-                "title": job.get("title"),
-                "description": job.get("description"),
-                "salary_min": job.get("salary_min"),
-                "salary_max": job.get("salary_max"),
-                "currency": job.get("currency"),
-                "location": job.get("location"),
-                "job_type": job.get("job_type"),
-                "posted_date": job.get("posted_date"),
-                "scraped_at": job.get("scraped_at"),
-                "raw_data": job.get("raw_data"), 
-            } for job in jobs
-        ]

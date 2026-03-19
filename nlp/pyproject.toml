@@ -34,3 +34,6 @@ dev = [
 
 [tool.uv]
 package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["nlp"]
