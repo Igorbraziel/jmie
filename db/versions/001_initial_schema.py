@@ -68,8 +68,8 @@ def upgrade() -> None:
         sa.Column('raw_data', JSONB(), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-        sa.ForeignKeyConstraint(['source_id'], ['sources.id'], ondelete='SET NULL'),
-        sa.ForeignKeyConstraint(['company_id'], ['companies.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['source_id'], ['sources.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['company_id'], ['companies.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     
