@@ -7,10 +7,13 @@ from typing import List, Dict, Any
 
 class BaseScraper(ABC):
     """Abtract class for all job board scrapers"""
-    def __init__(self, source_id: str, source_language: str):
-        self.source_id = source_id
+    def __init__(self, source_name: str, source_language: str):
+        self.source_name = source_name
         self.source_language = source_language
         self.session = self._create_resilient_session()
+
+    def get_source_info(self):
+        pass
 
     @staticmethod
     def _create_resilient_session() -> requests.Session:
@@ -29,7 +32,7 @@ class BaseScraper(ABC):
         return session
 
     @abstractmethod
-    def fetch(self) -> List[str]:
+    def fetch(self, keyword: str | None = None) -> List[str]:
         """Fetch raw HTML or JSON from the job board. Must return list of page contents."""
         pass
 
@@ -49,7 +52,7 @@ class BaseScraper(ABC):
                 jobs.extend(job_list)
             return self._normalize(jobs)
         except Exception as e:
-            print(f'Error: {e}\n while scraping from source: {self.source_id}, language: {self.source_language}')
+            print(f'Error: {e}\n while scraping from source: {self.source_name}, language: {self.source_language}')
             return []
 
     def _normalize(self, jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
