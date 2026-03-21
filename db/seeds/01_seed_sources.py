@@ -29,9 +29,9 @@ def seed_sources():
     seed_query = sa.text("""
         INSERT INTO sources (name, url, country, language, created_at, updated_at)
         VALUES
-            ('LinkedIn EN', 'https://www.linkedin.com/jobs/', 'US', 'en', NOW(), NOW()),
+            ('LinkedIn EN', 'https://www.linkedin.com', 'US', 'en', NOW(), NOW()),
+            ('LinkedIn PT', 'https://www.linkedin.com', 'BR', 'pt', NOW(), NOW()),
             ('Gupy PT', 'https://gupy.io', 'BR', 'pt', NOW(), NOW()),
-            ('ProgramaThor PT', 'https://programathor.com.br', 'BR', 'pt', NOW(), NOW()),
             ('Remote.ok EN', 'https://remoteok.com', 'Global', 'en', NOW(), NOW())
         ON CONFLICT (name) DO NOTHING;
     """)
