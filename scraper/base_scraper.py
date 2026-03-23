@@ -1,4 +1,6 @@
 import requests
+from requests.exceptions import Timeout, ConnectionError, HTTPError, RequestException
+from typing import Optional
 import random
 from urllib3.util.retry import Retry
 
@@ -52,12 +54,60 @@ class BaseScraper(ABC):
 
         return session
 
+    def _safe_request(
+        self,
+        url: str,
+        *,
+        method: str = "GET",
+        params: dict | None = None,
+        headers: dict | None = None,
+        timeout: int = 15,
+        use_session: bool = True,
+    ) -> Optional[requests.Response]:
+        """
+        Execute an HTTP request with standardised error handling.
+
+        Args:
+            url:         Target URL.
+            method:      HTTP verb (default ``GET``).
+            params:      Query-string parameters.
+            headers:     Extra request headers.
+            timeout:     Request timeout in seconds (default 15).
+            use_session: Use ``self.session`` when ``True`` (default),
+                         otherwise use a plain ``requests`` call.
+
+        Returns:
+            The :class:`requests.Response` object on success, or ``None``
+            if any network / HTTP error occurs.
+        """
+        requester = self.session if use_session else requests
+        try:
+            response = requester.request(
+                method, url, params=params, headers=headers, timeout=timeout
+            )
+            response.raise_for_status()
+            return response
+
+        except Timeout:
+            print(f"⏱️  Timeout Error: {url} took too long to respond.")
+        except ConnectionError:
+            print(f"🔌 Connection Error: Could not connect to {url}.")
+        except HTTPError as http_err:
+            status_code = http_err.response.status_code
+            print(f"🌐 HTTP Error {status_code}: {http_err}")
+        except RequestException as req_err:
+            print(f"⚠️  Critical Request Error: {req_err}")
+        except Exception as exc:
+            print(f"🐛 Unexpected System Error: {exc}")
+
+        return None
+
     @abstractmethod
     def fetch(self, search_params: Any) -> Any:
         """Fetch raw HTML or JSON from the job board."""
         pass
 
     @abstractmethod
-    def parse(self, html_content: str) -> Any:
-        """Parse the HTML content."""
+    def parse(self, content: str | dict) -> Any:
+        """Parse the HTML or JSON content."""
         pass
