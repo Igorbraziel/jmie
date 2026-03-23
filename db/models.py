@@ -10,7 +10,7 @@ class Source(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, unique=True)
-    url = Column(String, nullable=False, unique=True)
+    url = Column(String, nullable=False, unique=False)
     country = Column(String(255), nullable=False)
     language = Column(String(2), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))

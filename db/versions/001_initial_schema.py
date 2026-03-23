@@ -29,7 +29,7 @@ def upgrade() -> None:
         'sources',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('name', sa.String(length=255), nullable=False, unique=True),
-        sa.Column('url', sa.String(), nullable=False, unique=True),
+        sa.Column('url', sa.String(), nullable=False, unique=False),
         sa.Column('country', sa.String(length=255), nullable=False),
         sa.Column('language', sa.String(length=2), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
