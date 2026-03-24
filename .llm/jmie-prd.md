@@ -1,9 +1,11 @@
 # Project Requirements Document
 ## Job Market Intelligence Engine (JMIE)
 
-> **Version:** 1.6 · **Status:** Active — In Development · **Project Code:** JMIE-2025
-> **Domain:** MLOps / Data Engineering / NLP · **Cloud Strategy:** Multi-Cloud (Oracle + AWS + GCP)
+> **Version:** 2.0 · **Status:** Active — In Development · **Project Code:** JMIE-2025
+> **Domain:** MLOps / Data Engineering / NLP / Agentic AI · **Cloud Strategy:** Multi-Cloud (Oracle + AWS + GCP)
 > Prepared by: Senior AI Product Manager & Lead MLOps Engineering
+>
+> **v2.0 Changes:** Hybrid Agentic Architecture introduced — four AI Agents (Sprints 3–6) layered above the deterministic Airflow/PostgreSQL backbone. Multi-Model Tiered Strategy defined (Llama → Gemini → DeepSeek). Lightweight agent framework mandates per sprint. Heavy multi-agent roleplay frameworks (CrewAI) explicitly banned.
 >
 > **v1.6 Changes:** `uv` adopted as Python package manager across all services and CI/CD
 
@@ -18,6 +20,7 @@
 5. [Project Structure](#5-project-structure)
 6. [Milestones & Sprints](#6-milestones--sprints)
 7. [Out of Scope](#7-out-of-scope)
+8. [Cost, AI Infrastructure & Multi-Model Strategy](#8-cost-ai-infrastructure--multi-model-strategy)
 
 ---
 
@@ -48,10 +51,11 @@ The Job Market Intelligence Engine (JMIE) is a fully automated, containerized, e
 1. The Airflow DAG runs daily without manual intervention and successfully processes >95% of scraped postings.
 2. The NER model achieves F1 > 0.80 on a held-out validation set, measured **separately** for English and Portuguese corpora.
 3. The RAG API returns a meaningful, grounded response to any natural language market query (in EN or PT) within 5 seconds (p95 latency).
-4. Total infrastructure cost stays under **$3 USD/month** in steady-state (Oracle VM: $0 · AWS S3: ~$0.20 · GCP: ~$0 within free tier).
+4. Total infrastructure cost stays under **$3 USD/month** in steady-state (Oracle VM: $0 · AWS S3: ~$0.20 · GCP: ~$0 within free tier · LLM API: $0 within Gemini AI Studio free tier).
 5. The system runs 24/7 without manual intervention on the Oracle Cloud Always Free VM.
 6. All MLflow experiment runs, model versions, and production promotions are traceable via the MLflow UI without manual S3 inspection.
 7. A `git push` to `main` triggers a full automated redeployment of the FastAPI service with zero manual steps.
+8. All four AI Agents operate strictly within their designated analytical role — no Agent writes directly to S3, PostgreSQL, or triggers downstream Airflow tasks autonomously.
 
 ---
 
@@ -167,6 +171,35 @@ Five-stage pipeline on every `POST /query` request:
 > **Note:** The RAG layer is optional for the generative step. If no generative backend is configured, the API returns retrieved documents directly as a retrieval-only engine.
 
 **Phoenix Observability:** Every execution of this five-stage pipeline emits an OpenTelemetry trace to the Arize Phoenix server. Each stage is captured as a span with its own latency, inputs, and outputs — enabling full end-to-end visibility of retrieval quality, context relevance, and response faithfulness directly in the Phoenix UI.
+
+### 2.3 Two-Tier Execution Model — Deterministic vs. Agentic
+
+> **Architectural mandate (v2.0):** Airflow and PostgreSQL must remain strictly deterministic. AI Agents act exclusively as the non-deterministic analytical layer and are never permitted to write directly to S3, PostgreSQL, or trigger DAG tasks autonomously.
+
+```
+DETERMINISTIC TIER (Airflow + PostgreSQL)        NON-DETERMINISTIC TIER (AI Agents)
+─────────────────────────────────────────        ────────────────────────────────────
+• Scrape raw HTML  →  AWS S3                     • NER Annotation Assistant (Sprint 3)
+• Load JSONL batches  →  PostgreSQL              • Smart Search Agent / Agentic RAG (Sprint 4)
+• Refresh materialized views                     • Diagnostic Agent / Scraper Monitor (Sprint 5)
+• Emit Slack / email alerts (alerting.py)        • Reporter Agent / Market Intelligence (Sprint 6)
+• NEVER calls an LLM directly                    • Reads structured data produced by the left tier
+• NEVER produces non-deterministic output        • Returns text or strictly typed JSON only
+                                                 • NEVER writes to S3 or PostgreSQL directly
+                                                 • NEVER triggers downstream DAG tasks
+```
+
+**Why this boundary is non-negotiable:**
+- Airflow DAGs must be **idempotent and re-runnable**. LLM non-determinism inside a DAG task breaks this guarantee.
+- PostgreSQL is the system of record. Agent hallucinations must never corrupt it — agents only read aggregated views.
+- Token cost is impossible to bound if an Agent can recursively spawn further Agent calls. Hard limits (`max_iterations = 3` in Sprint 4) and the Raw SDK pattern (Sprints 5–6) enforce this structurally.
+
+| Agent | Sprint | Framework | Hard Constraint |
+|---|---|---|---|
+| NER Annotation Assistant | 3 | PydanticAI | Typed JSON only — schema validation, no free-form output |
+| Smart Search / Agentic RAG | 4 | LangGraph or Raw SDK | `max_iterations = 3` hard cap |
+| Diagnostic Agent | 5 | Raw SDK | Human-in-the-Loop; no autonomous self-healing |
+| Reporter Agent | 6 | Raw SDK | Single-shot LLM call; no tool loops |
 
 ---
 
@@ -723,7 +756,8 @@ Each sprint is two weeks with a defined, demonstrable deliverable. Sprints are s
 | MLflow Model Registry | Trained model registered under `jmie-ner`; manually promoted to `Production` stage after evaluation |
 | NER Airflow task | Batch inference loads Production model from MLflow; writes to `skills_extracted` table with `language` field |
 | Embedding pipeline | `paraphrase-multilingual-MiniLM-L12-v2` vectors upserted into Qdrant `job_postings` collection |
-| **Sprint Deliverable** | End-to-end bilingual pipeline with full MLflow experiment history; all runs comparable in the MLflow UI |
+| **[AGENT] NER Annotation Assistant** | **Framework: PydanticAI.** Receives raw job description batches and outputs strictly typed JSON conforming to the Label Studio annotation schema. PydanticAI validation must raise an error — not silently pass — if the LLM returns malformed output. Agent runs as a pre-annotation step invoked by the human annotator workflow, never by the Airflow DAG directly. Output feeds `nlp/annotation/en/import_from_labelstudio.py` and `nlp/annotation/pt/import_from_labelstudio.py`. |
+| **Sprint Deliverable** | End-to-end bilingual pipeline with full MLflow experiment history; all runs comparable in the MLflow UI; PydanticAI NER Annotation Assistant validated against Label Studio import schema |
 
 ### Sprint 4 — FastAPI & RAG Query Layer *(Weeks 7–8)*
 
@@ -735,7 +769,8 @@ Each sprint is two weeks with a defined, demonstrable deliverable. Sprints are s
 | `POST /query` | Full 5-stage RAG pipeline executes; returns JSON with answer + cited evidence |
 | Phoenix instrumentation | `opentelemetry-sdk` and `arize-phoenix` integrated into FastAPI RAG pipeline; all 5 stages visible as spans in Phoenix UI at `:6006` |
 | Phoenix trace validation | A real `POST /query` call produces a complete trace tree in Phoenix showing latencies and retrieved document scores |
-| **Sprint Deliverable** | Callable, fully observable RAG API — every query produces a trace in Phoenix with per-stage latency and retrieval quality metrics visible in the UI |
+| **[AGENT] Smart Search Agent / Agentic RAG** | **Framework: LangGraph or Raw SDK Tool Calling.** Replaces the static 5-stage RAG pipeline with a routing state machine. The agent may call up to **3 tool hops** (`max_iterations = 3` hard cap — this is non-negotiable; infinite tool-calling loops cause unbounded token cost). Tools available to the agent: `qdrant_search`, `postgres_skill_trends`, `assemble_context`. The graph must be acyclic — no edge may create a loop back to a previously visited node. **Semantic caching is mandatory** on the `POST /query` endpoint: identical or near-identical user queries must be served from cache without hitting the LLM API. Recommended: `GPTCache` or a Redis-backed semantic similarity cache keyed on the query embedding. |
+| **Sprint Deliverable** | Callable, fully observable Agentic RAG API with `max_iterations = 3` guardrail enforced at the framework level; semantic cache hit rate ≥ 80% on repeated queries; every query produces a Phoenix trace |
 
 ### Sprint 5 — MLOps Hardening & CI/CD *(Weeks 9–10)*
 
@@ -751,7 +786,8 @@ Each sprint is two weeks with a defined, demonstrable deliverable. Sprints are s
 | Volume backups | `backup_volumes.sh` covers PostgreSQL, Qdrant, MLflow, and Phoenix volumes; verified upload to S3 backup prefix |
 | MkDocs site | `docs/` folder populated with architecture, setup, API, MLflow, and Phoenix sections; Material theme configured |
 | GitHub Pages deploy | `docs.yml` GitHub Actions workflow builds and deploys MkDocs site; live at `https://USERNAME.github.io/jmie` |
-| **Sprint Deliverable** | Full zero-touch CI/CD + live public documentation: `git push` to `main` → Docker image built and deployed → MkDocs site rebuilt and published simultaneously |
+| **[AGENT] Diagnostic Agent / Scraper Monitor** | **Framework: Raw SDK (simple Python function invoking the LLM — zero framework overhead).** Reads Airflow task logs from the S3 audit prefix and CloudWatch metrics. Identifies patterns indicating scraper failure, rate-limiting, or schema drift across sources. **Autonomous self-healing is explicitly banned.** This is a Human-in-the-Loop (HITL) diagnostic process: the agent produces a plain-language diagnostic summary and sends it as a Slack alert payload via `dags/utils/alerting.py`. A human engineer reads the alert and decides on remediation. The agent never modifies DAG configuration, restarts tasks, or alters source configs autonomously. Token cost is bounded by the single-shot invocation pattern. |
+| **Sprint Deliverable** | Full zero-touch CI/CD + live public documentation; Slack Diagnostic Agent alerts firing on scraper anomalies; human-readable diagnostic summaries validated in staging |
 
 ### Sprint 6 — React Frontend *(Weeks 11–12)*
 
@@ -767,7 +803,8 @@ Each sprint is two weeks with a defined, demonstrable deliverable. Sprints are s
 | Error handling | All API error states (401, 422, 500, timeout) display a non-technical `ErrorBanner` — no raw JSON visible to the user |
 | CI/CD extended | Frontend Docker image built multi-platform and pushed to GCP Artifact Registry in the existing `ci_cd.yml` workflow; Oracle VM deploys frontend alongside API on merge to `main` |
 | Documentation | `docs/frontend.md` populated with local dev setup, component structure, and ENV variable guide |
-| **Sprint Deliverable** | A live, publicly accessible React dashboard at `http://ORACLE_IP:3000` showing real job market data — fully functional across all three views with no backend changes required |
+| **[AGENT] Reporter Agent / Market Intelligence** | **Framework: Raw SDK (direct Python function calling the production LLM — no agent framework overhead).** Reads pre-aggregated data from the `skill_trends_daily` PostgreSQL materialized view (via a parameterized SQL query) and synthesizes a concise, human-readable weekly market intelligence report. The report is generated as a single-shot LLM call — no tool loops, no intermediate steps. Output is returned as a structured JSON payload `{"report": "...", "period": "...", "language": "en|pt"}` and exposed via a new `GET /report/weekly?lang=en|pt` FastAPI endpoint. Report generation is triggered once per week by a dedicated Airflow run (read-only DAG task: it queries PostgreSQL and passes results to the Agent function). |
+| **Sprint Deliverable** | A live, publicly accessible React dashboard at `http://ORACLE_IP:3000` showing real job market data — fully functional across all three views; `GET /report/weekly` endpoint returning AI-generated market narrative backed by real PostgreSQL trend data |
 
 ---
 
@@ -809,6 +846,42 @@ The following items are explicitly excluded from JMIE v1.0. Any scope change req
 
 ---
 
+## 8. Cost, AI Infrastructure & Multi-Model Strategy
+
+> **Mandate (v2.0):** All AI Agent LLM calls must flow through the tiered model strategy defined below. No agent may use a model outside this stack without an explicit architecture decision record.
+
+### 8.1 LLM Tier Stack
+
+| Tier | Model Family | Usage Context | Cost |
+|---|---|---|---|
+| **Development / Local** | **Llama** (any locally served variant via Ollama or llama.cpp) | All local development and automated testing. Zero API calls, zero token cost. Agents must be configurable to use a local Llama endpoint by setting `LLM_PROVIDER=local` in `.env.dev`. | **$0** |
+| **Production Backbone** | **Google Gemini** (via AI Studio API) | Primary production engine for all four agents. Gemini's generous free tier handles high-volume routing and processing at scale. Default for all agents when `LLM_PROVIDER=gemini` (set in `.env.prod`). | **$0** (within AI Studio free tier) |
+| **Fallback / Specialized** | **DeepSeek** (API) | Fallback for highly complex multi-step reasoning tasks, or when Gemini production rate limits are hit. Activated automatically via `LLM_PROVIDER=deepseek` or via a runtime fallback wrapper that catches `429 Too Many Requests` from the Gemini API. | Low cost per token; reserved for fallback use only |
+
+**Implementation note:** All agents must accept an `llm_provider` parameter resolved from environment variables. No model name must ever be hardcoded in agent logic. The provider abstraction layer (`api/ai/provider.py`) exposes a single `call_llm(prompt, provider)` interface used by all four agents.
+
+### 8.2 Agent Framework Mandate Per Sprint
+
+> **Banned framework:** **CrewAI** (and any other heavy multi-agent roleplay framework) is **explicitly prohibited** across all sprints. These frameworks force agents to call each other in recursive roleplay loops, making token consumption non-deterministic and impossible to bound within the $3/month infrastructure budget. Violations of this policy must be flagged as blocking issues in code review.
+
+| Sprint | Agent | **Mandated Framework** | Rationale |
+|---|---|---|---|
+| **Sprint 3** | NER Annotation Assistant | **PydanticAI** | Guarantees strictly typed JSON output for Label Studio. If the LLM returns schema-invalid output, PydanticAI raises a hard validation error — garbage data never silently enters the annotation pipeline. |
+| **Sprint 4** | Smart Search Agent / Agentic RAG | **LangGraph** or **Raw SDK Tool Calling** | Models the RAG routing as an explicit, acyclic state machine. `max_iterations = 3` is enforced at the graph level — a cycle cannot exist because the graph edges don't include one. Raw SDK Tool Calling is an acceptable alternative if the routing logic is simple enough to not warrant a full graph. |
+| **Sprint 5** | Diagnostic Agent / Scraper Monitor | **Raw SDK** (Python function → LLM call) | Single-shot diagnostic generation. A full agent framework adds zero capability and measurable token overhead for a function that reads logs and returns a Slack message. |
+| **Sprint 6** | Reporter Agent / Market Intelligence | **Raw SDK** (Python function → LLM call) | Single-shot report generation from pre-aggregated SQL results. Same rationale as Sprint 5. Any agentic looping is unnecessary and wasteful. |
+
+### 8.3 Semantic Caching Mandate (Sprint 4)
+
+The `POST /query` endpoint **must** implement semantic caching to avoid repeatedly hitting the LLM API for identical or near-identical user queries. This is a hard requirement, not a nice-to-have.
+
+- **Mechanism:** Cache keyed on the query's dense vector embedding (cosine similarity threshold: ≥ 0.95 = cache hit). On a cache hit, return the cached response immediately — skip the LLM call entirely.
+- **Recommended implementations:** `GPTCache` (drop-in wrapper) or a Redis-backed semantic cache using the existing `redis` Docker Compose service.
+- **Acceptance criterion:** Cache hit rate ≥ 80% on a benchmark set of 50 repeated queries across a 7-day window.
+- **Observability:** Cache hits and misses must be tracked as custom CloudWatch metrics and visible in the Phoenix trace as a span attribute (`cache_hit: true|false`).
+
+---
+
 ## Tech Stack Summary
 
 | Category | Technology | Version / Notes |
@@ -836,8 +909,16 @@ The following items are explicitly excluded from JMIE v1.0. Any scope change req
 | **API Hosting** *(opt.)* | GCP Cloud Run | Serverless · HTTPS · Scales to zero · Free tier |
 | **Monitoring** | AWS CloudWatch | Custom DAG metrics pushed from Oracle VM |
 | **Identity** | AWS IAM | Least-privilege instance role |
+| **LLM — Development** | Llama (local via Ollama / llama.cpp) | Zero-cost local dev; activated via `LLM_PROVIDER=local` |
+| **LLM — Production** | Google Gemini (AI Studio API) | Primary production backbone; generous free tier; activated via `LLM_PROVIDER=gemini` |
+| **LLM — Fallback** | DeepSeek (API) | Complex reasoning fallback; triggered on rate-limit or explicit routing; `LLM_PROVIDER=deepseek` |
+| **Agent Framework — Sprint 3** | PydanticAI | Strictly typed JSON output for Label Studio annotation pipeline |
+| **Agent Framework — Sprint 4** | LangGraph or Raw SDK | Acyclic RAG routing state machine; `max_iterations = 3` hard cap |
+| **Agent Framework — Sprints 5–6** | Raw SDK (Python + LLM call) | Single-shot diagnostic and reporting; zero framework overhead |
+| **Semantic Cache — Sprint 4** | GPTCache or Redis semantic cache | Keyed on query embedding; ≥ 0.95 cosine similarity = cache hit; ≥80% hit rate target |
 
 ---
 
-*Document Control: JMIE PRD v1.6 · Approved for Sprint 1 · Senior AI PM & Lead MLOps Engineering*
-*v1.6 changes: `uv` as Python package manager (MLOPS-15) · `pyproject.toml` + `uv.lock` across all services · Dockerfile `uv sync --frozen` · uv in CI runner and Oracle VM bootstrap*
+*Document Control: JMIE PRD v2.0 · Senior AI PM & Lead MLOps Engineering*
+*v2.0 changes: Hybrid Agentic Architecture · Four AI Agents mapped to Sprints 3–6 · Multi-Model Tiered Strategy (Llama/Gemini/DeepSeek) · Agent framework mandates per sprint (PydanticAI · LangGraph · Raw SDK) · CrewAI explicitly banned · Semantic caching mandated for Sprint 4 · Two-Tier Execution Model (Airflow deterministic · Agents analytical-only)*
+*v1.6 changes: `uv` as Python package manager (MLOPS-15) · `pyproject.toml` + `uv.lock` across all services · Dockerfile `uv sync --frozen` · uv in CI runner and Oracle VM bootstrap*
