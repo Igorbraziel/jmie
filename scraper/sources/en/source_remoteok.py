@@ -70,14 +70,14 @@ class RemoteOkScraper(BaseScraper):
         parsed_description = self._parse_html_description(description)
         return {
             "job": RemoteOkJob(
-                title=content.get("position"),
+                title=content.get("position", "").strip(),
                 description=parsed_description,
-                url=content.get("url"),
-                salary_min=content.get("salary_min"),
-                salary_max=content.get("salary_max"),
-                location=content.get("location"),
+                url=content.get("url", "").strip(),
+                salary_min=content.get("salary_min", "").strip(),
+                salary_max=content.get("salary_max", "").strip(),
+                location=content.get("location", "").strip(),
                 job_type="REMOTE", # Standard for RemoteOK
-                posted_date=content.get("date"),
+                posted_date=content.get("date", "").strip(),
                 scraped_at=datetime.now(timezone.utc).isoformat(),
                 source_name=self.source_name
             ),
