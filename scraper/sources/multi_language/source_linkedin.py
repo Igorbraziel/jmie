@@ -7,7 +7,7 @@ from scraper.base_scraper import BaseScraper
 from scraper.sources.multi_language.linkedin_config import LinkedInSearchParams, LinkedInJob, LinkedInCompany, Location, GeoId, TimePosted, WorkType, ExperienceLevel
 
 from bs4 import BeautifulSoup
-from requests.exceptions import Timeout, ConnectionError, HTTPError, RequestException
+from requests.exceptions import HTTPError, RequestException
 
 class LinkedInScraper(BaseScraper):
     BASE_URL = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
@@ -77,8 +77,8 @@ class LinkedInScraper(BaseScraper):
         html_content = self.fetch(search_params)
         job_ids = self.parse(html_content)
 
-        job_list = []
-        company_list = []
+        job_list: List[Dict[str, Any]] = []
+        company_list: List[Dict[str, Any]] = []
 
         for job_id in job_ids:
             time.sleep(random.uniform(2.0, 4.0))
@@ -94,7 +94,6 @@ class LinkedInScraper(BaseScraper):
 
             linkedin_job = response_dict.get("job")
             linkedin_company = response_dict.get("company")
-            
         
             job_list.append(linkedin_job.to_dict())
             company_list.append(linkedin_company.to_dict())
@@ -105,38 +104,21 @@ class LinkedInScraper(BaseScraper):
         }
         
     def fetch(self, search_params: LinkedInSearchParams) -> str:
-        """Fetch raw HTML or JSON from the job board."""
-        try:
-            response = self.session.get(url=LinkedInScraper.BASE_URL, params=search_params.to_dict(), timeout=60)
-            response.raise_for_status()
-            print(f"HTML content successfully fetched from LinkedIn!")
-            return response.text
+        """Fetch raw HTML from LinkedIn."""
+        response = self._safe_request(
+            url=LinkedInScraper.BASE_URL,
+            params=search_params.to_dict(),
+            timeout=60,
+        )
+        if response is None:
+            return ""
+        print("HTML content successfully fetched from LinkedIn!")
+        return response.text
 
-        except Timeout:
-            print("⏱️ Timeout Error: The job board took too long to respond.")
-            return []
-
-        except ConnectionError:
-            print("🔌 Connection Error: Could not connect to the server.")
-            return []
-
-        except HTTPError as http_err:
-            status_code = http_err.response.status_code
-            print(f"🌐 HTTP Error {status_code}: {http_err}")    
-            return []
-
-        except RequestException as req_err:
-            print(f"⚠️ Critical Request Error: {req_err}")
-            return []
-
-        except Exception as e:
-            print(f"🐛 Unexpected System Error: {e}")
-            return []
-
-    def parse(self, html_content: str) -> List[str]:
+    def parse(self, content: str) -> List[str]:
         """Parse the HTML content."""
         job_ids = []
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = BeautifulSoup(content, 'html.parser')
 
         job_cards = soup.find_all('a', class_='base-card__full-link')
         
