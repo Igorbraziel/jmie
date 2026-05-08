@@ -56,6 +56,15 @@ services:
       AIRFLOW__LOGGING__BASE_LOG_FOLDER: /home/airflow/logs
       AIRFLOW__SCHEDULER__CHILD_PROCESS_LOG_DIRECTORY: /home/airflow/logs/scheduler
       JMIE_USE_MOCK_SCRAPER: 'true'
+      # OCI
+      OCI_USE_MOCK: ${OCI_USE_MOCK}
+      OCI_MOCK_ROOT: ${OCI_MOCK_ROOT}
+      OCI_CONFIG_FILE: ${OCI_CONFIG_FILE}
+      OCI_TENANCY_OCID: ${OCI_TENANCY_OCID}
+      OCI_USER_OCID: ${OCI_USER_OCID}
+      OCI_FINGERPRINT: ${OCI_FINGERPRINT}
+      OCI_REGION: ${OCI_REGION}
+      OCI_BUCKET_NAME: ${OCI_BUCKET_NAME}
     volumes:
       - ./dags:/home/airflow/gitsync/dags
       - ./scraper:/home/airflow/gitsync/scraper
