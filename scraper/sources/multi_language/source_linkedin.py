@@ -77,8 +77,8 @@ class LinkedInScraper(BaseScraper):
         html_content = self.fetch(search_params)
         job_ids = self.parse(html_content)
 
-        job_list = []
-        company_list = []
+        job_list: List[Dict[str, Any]] = []
+        company_list: List[Dict[str, Any]] = []
 
         for job_id in job_ids:
             time.sleep(random.uniform(2.0, 4.0))
@@ -94,7 +94,6 @@ class LinkedInScraper(BaseScraper):
 
             linkedin_job = response_dict.get("job")
             linkedin_company = response_dict.get("company")
-            
         
             job_list.append(linkedin_job.to_dict())
             company_list.append(linkedin_company.to_dict())
