@@ -22,7 +22,7 @@ class RemoteOkSearchParams:
     
 @dataclass
 class RemoteOkBaseDataclass:
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict:
         """Converts the dataclass to a dictonary"""
         return {k: v for k, v in asdict(self).items() if v is not None}
     

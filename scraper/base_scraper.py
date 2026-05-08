@@ -1,4 +1,5 @@
 import requests
+from requests.adapters import HTTPAdapter
 from requests.exceptions import Timeout, ConnectionError, HTTPError, RequestException
 from typing import Optional
 import random
@@ -47,7 +48,7 @@ class BaseScraper(ABC):
             respect_retry_after_header=True
         )
 
-        adapter = requests.adapters.HTTPAdapter(max_retries=retry_strategy)
+        adapter = HTTPAdapter(max_retries=retry_strategy)
 
         session.mount('http://', adapter)
         session.mount('https://', adapter)
@@ -59,8 +60,8 @@ class BaseScraper(ABC):
         url: str,
         *,
         method: str = "GET",
-        params: dict | None = None,
-        headers: dict | None = None,
+        params: Dict | None = None,
+        headers: Dict | None = None,
         timeout: int = 15,
         use_session: bool = True,
     ) -> Optional[requests.Response]:
@@ -108,6 +109,11 @@ class BaseScraper(ABC):
         pass
 
     @abstractmethod
-    def parse(self, content: str | dict) -> Any:
+    def parse(self, content: str | Dict) -> Any:
         """Parse the HTML or JSON content."""
+        pass
+
+    @abstractmethod
+    def scrape_jobs_and_companies(self, search_params: Any) -> Any:
+        """The main flow of execution"""
         pass
