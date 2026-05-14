@@ -4,6 +4,7 @@
 
 # ===== LLM-RELATED FILES =====
 CLAUDE.md
+GEMINI.md
 
 # ===== ENVIRONMENT & SECRETS =====
 # Real credentials (NEVER commit these)

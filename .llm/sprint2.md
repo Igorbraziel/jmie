@@ -1,7 +1,7 @@
 # Sprint 2 — Data Ingestion Pipeline (Weeks 3–4)
 
 ## Overview
-Sprint 2 focuses on building the complete data ingestion layer (Layer 1) of JMIE. By the end of this sprint, the system will scrape job postings from multiple sources, validate them, store raw data in S3, and load processed metadata into PostgreSQL.
+Sprint 2 focuses on building the complete data ingestion layer (Layer 1) of JMIE. By the end of this sprint, the system will scrape job postings from multiple sources, validate them, store raw data in Oracle Cloud Object Storage, and load processed metadata into PostgreSQL.
 
 **Duration:** Weeks 3–4 (2 weeks)
 **Status:** Ready for implementation
@@ -13,10 +13,10 @@ Sprint 2 focuses on building the complete data ingestion layer (Layer 1) of JMIE
 | Deliverable | Acceptance Criteria |
 |---|---|
 | **Scraper module** | Minimum 2 job board sources; retry logic with exponential backoff; graceful failure handling (no crash on network error) |
-| **Airflow DAG** | `scrape → validate → S3-write` task chain; manual trigger successful; DAG visible in Airflow UI |
+| **Airflow DAG** | `scrape → validate → OCI-write` task chain; manual trigger successful; DAG visible in Airflow UI |
 | **PostgreSQL schema** | `jobs`, `companies`, `sources` tables with primary keys and indexes; Alembic migration written and applied |
-| **S3-to-Postgres loader** | Raw metadata loader task tested end-to-end; data flows from S3 → PostgreSQL |
-| **Sprint Deliverable** | DAG populates S3 and PostgreSQL daily with 50+ new job records per run |
+| **OCI-to-Postgres loader** | Raw metadata loader task tested end-to-end; data flows from OCI Object Storage → PostgreSQL |
+| **Sprint Deliverable** | DAG populates OCI Object Storage and PostgreSQL daily with 50+ new job records per run |
 
 ---
 
@@ -351,60 +351,70 @@ def test_linkedin_graceful_failure():
 
 ---
 
-## Phase 3: S3 Integration (Days 5–6)
+## Phase 3: OCI Object Storage Integration (Days 5–6)
 
-### Step 3.1: Add S3 Utilities
+### Step 3.1: Add OCI Object Storage Utilities
 
 Create `scraper/storage.py`:
 
 ```python
-import boto3
+import oci
 import json
 from datetime import datetime
 from typing import List, Dict, Any
+import gzip
 
-class S3Storage:
-    """Handle writing raw job data to AWS S3."""
+class OCIStorage:
+    """Handle writing raw job data to Oracle Cloud Object Storage."""
 
-    def __init__(self, bucket: str, region: str = "us-east-1"):
-        self.s3_client = boto3.client("s3", region_name=region)
+    def __init__(self, namespace: str, bucket: str):
+        # Use instance principal credentials for authentication
+        # No key files on disk - credentials managed by OCI VM instance
+        self.config = oci.config.from_file()
+        self.client = oci.object_storage.ObjectStorageClient(self.config)
+        self.namespace = namespace
         self.bucket = bucket
 
     def write_jobs(self, jobs: List[Dict[str, Any]], source_id: int):
-        """Write jobs to S3 in JSONL format, partitioned by date and source."""
+        """Write jobs to OCI Object Storage in gzip-compressed JSONL format, partitioned by date and source."""
         if not jobs:
             print(f"No jobs to write for source {source_id}")
             return
 
         date_str = datetime.utcnow().strftime("%Y/%m/%d")
-        key = f"raw/source_id={source_id}/{date_str}/jobs.jsonl"
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        key = f"raw/{date_str}/batch_{timestamp}_source_{source_id}.jsonl.gz"
 
+        # Create gzip-compressed JSONL content
         content = "\n".join(json.dumps(job) for job in jobs)
-        self.s3_client.put_object(
-            Bucket=self.bucket,
-            Key=key,
-            Body=content,
+        compressed_content = gzip.compress(content.encode('utf-8'))
+
+        self.client.put_object(
+            namespace_name=self.namespace,
+            bucket_name=self.bucket,
+            object_name=key,
+            put_object_body=compressed_content,
         )
-        print(f"Wrote {len(jobs)} jobs to s3://{self.bucket}/{key}")
+        print(f"Wrote {len(jobs)} jobs to oci://{self.namespace}/{self.bucket}/{key}")
 ```
 
-### Step 3.2: Update Scraper Orchestrator with S3
+### Step 3.2: Update Scraper Orchestrator with OCI Object Storage
 
-Modify `scraper/orchestrator.py` to write to S3:
+Modify `scraper/orchestrator.py` to write to OCI Object Storage:
 
 ```python
-from scraper.storage import S3Storage
+from scraper.storage import OCIStorage
 
 class ScraperOrchestrator:
-    def __init__(self, s3_bucket: str):
+    def __init__(self, oci_namespace: str, oci_bucket: str):
         self.scrapers = [LinkedInScraper(), GupyScraper()]
-        self.s3 = S3Storage(bucket=s3_bucket)
+        self.storage = OCIStorage(namespace=oci_namespace, bucket=oci_bucket)
 
     def run_all(self) -> List[Dict[str, Any]]:
         all_jobs = []
         for scraper in self.scrapers:
             jobs = scraper.scrape()
-            self.s3.write_jobs(jobs, source_id=scraper.source_id)
+            self.storage.write_jobs(jobs, source_id=scraper.source_id)
             all_jobs.extend(jobs)
         return all_jobs
 ```
@@ -428,7 +438,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scraper.orchestrator import ScraperOrchestrator
-from scraper.storage import S3Storage
 import importlib
 
 default_args = {
@@ -447,9 +456,10 @@ dag = DAG(
 )
 
 def run_scraper():
-    """Execute all scrapers and write to S3."""
-    s3_bucket = os.getenv("AWS_S3_BUCKET", "jmie-data-lake")
-    orchestrator = ScraperOrchestrator(s3_bucket=s3_bucket)
+    """Execute all scrapers and write to OCI Object Storage."""
+    oci_namespace = os.getenv("OCI_NAMESPACE", "jmie")
+    oci_bucket = os.getenv("OCI_BUCKET", "jmie-datalake")
+    orchestrator = ScraperOrchestrator(oci_namespace=oci_namespace, oci_bucket=oci_bucket)
     jobs = orchestrator.run_all()
     return {"total_jobs": len(jobs), "jobs": jobs}
 
@@ -467,7 +477,7 @@ def validate_jobs(ti):
     return {"valid_count": valid_count, "total_count": len(jobs)}
 
 def load_to_postgres(ti):
-    """Load validated jobs from S3 to PostgreSQL."""
+    """Load validated jobs from OCI Object Storage to PostgreSQL."""
     validate_result = ti.xcom_pull(task_ids="validate")
     valid_count = validate_result.get("valid_count", 0)
     print(f"Loading {valid_count} jobs to PostgreSQL")
@@ -516,7 +526,7 @@ python -c "from scraping_workflow import dag; print('DAG loaded successfully')"
 
 ---
 
-## Phase 5: S3-to-PostgreSQL Loader (Days 8–10)
+## Phase 5: OCI Object Storage-to-PostgreSQL Loader (Days 8–10)
 
 ### Step 5.1: Create PostgreSQL Loader Module
 
@@ -530,7 +540,7 @@ from datetime import datetime
 import json
 
 class PostgresLoader:
-    """Load job data from S3/memory into PostgreSQL."""
+    """Load job data from OCI Object Storage/memory into PostgreSQL."""
 
     def __init__(self, host: str, database: str, user: str, password: str):
         self.conn = psycopg2.connect(
@@ -674,9 +684,9 @@ ALTER TABLE jobs ADD CONSTRAINT unique_url_per_source UNIQUE (url, source_id);
    docker exec jmie-postgres psql -U postgres -d jmie -c "SELECT COUNT(*) FROM jobs;"
    ```
 
-6. **Verify data in S3**:
+6. **Verify data in OCI Object Storage**:
    ```bash
-   aws s3 ls s3://jmie-data-lake/raw/ --recursive
+   oci os object list --namespace-name jmie --bucket-name jmie-datalake --prefix raw/
    ```
 
 ---
@@ -696,7 +706,7 @@ from datetime import datetime
 
 @pytest.fixture
 def orchestrator():
-    return ScraperOrchestrator(s3_bucket="jmie-data-lake-dev")
+    return ScraperOrchestrator(oci_namespace="jmie", oci_bucket="jmie-datalake-dev")
 
 @pytest.fixture
 def loader():
@@ -766,7 +776,7 @@ Layer 1 orchestrates daily job board scraping, validation, and storage.
 ## Architecture
 - **Scrapers**: Modular Python classes for each job board
 - **Orchestrator**: Manages all scraper instances
-- **Storage**: S3 + PostgreSQL persistence
+- **Storage**: OCI Object Storage + PostgreSQL persistence
 - **Orchestration**: Apache Airflow DAG scheduled daily at 02:00 UTC
 
 ## Adding a New Scraper
@@ -778,7 +788,7 @@ Layer 1 orchestrates daily job board scraping, validation, and storage.
 
 ## Monitoring
 - Airflow UI: `http://localhost:8080`
-- S3 data: `s3://jmie-data-lake/raw/`
+- OCI Object Storage data: `oci://jmie-datalake/raw/`
 - PostgreSQL: `psql -d jmie -c "SELECT COUNT(*) FROM jobs;"`
 ```
 
@@ -797,7 +807,7 @@ Layer 1 orchestrates daily job board scraping, validation, and storage.
 | **Manual trigger works** | ✓ | DAG runs successfully from Airflow UI |
 | **PostgreSQL schema** | ✓ | Tables: `sources`, `companies`, `jobs` with indexes |
 | **Alembic migration** | ✓ | Migration applied successfully |
-| **S3-to-Postgres loader** | ✓ | `PostgresLoader` tested end-to-end |
+| **OCI-to-Postgres loader** | ✓ | `PostgresLoader` tested end-to-end |
 | **50+ records daily** | ✓ | DAG produces ≥50 jobs per run |
 
 ### Step 7.2: Performance Baseline
@@ -811,8 +821,8 @@ time docker exec jmie-airflow airflow tasks run scraping_workflow scrape $(date 
 # Check job counts
 docker exec jmie-postgres psql -U postgres -d jmie -c "SELECT COUNT(*) FROM jobs WHERE scraped_at >= NOW() - INTERVAL '1 hour';"
 
-# Check S3 size
-aws s3 ls s3://jmie-data-lake/raw/ --summarize --human-readable
+# Check OCI Object Storage contents
+oci os object list --namespace-name jmie --bucket-name jmie-datalake --prefix raw/
 ```
 
 ### Step 7.3: Mark Sprint 2 Complete
@@ -827,10 +837,10 @@ aws s3 ls s3://jmie-data-lake/raw/ --summarize --human-readable
 
 ## Rollover to Sprint 3
 
-At the end of Sprint 2, the output of Layer 1 (S3-stored raw job data + PostgreSQL metadata) becomes the **input** to Sprint 3 (Layer 2: NLP Processing). Ensure:
+At the end of Sprint 2, the output of Layer 1 (OCI-stored raw job data + PostgreSQL metadata) becomes the **input** to Sprint 3 (Layer 2: NLP Processing). Ensure:
 
 - PostgreSQL is seeded with ≥50 recent jobs daily
-- S3 contains daily partitioned JSONL files
+- OCI Object Storage contains daily partitioned gzip-compressed JSONL files
 - All job records have `description` field populated (required for NER in Sprint 3)
 
 Sprint 3 will read from PostgreSQL `jobs.description` and extract bilingual named entities using XLM-RoBERTa.
@@ -859,9 +869,10 @@ docker exec jmie-airflow airflow dags list
 docker exec jmie-airflow airflow dags trigger scraping_workflow
 docker exec jmie-airflow airflow logs scraping_workflow scrape -n 50
 
-# S3 verification
-aws s3 ls s3://jmie-data-lake/raw/ --recursive
-aws s3 cp s3://jmie-data-lake/raw/source_id=1/2025/01/01/jobs.jsonl - | head -5
+# OCI Object Storage verification
+oci os object list --namespace-name jmie --bucket-name jmie-datalake --prefix raw/
+oci os object get --namespace-name jmie --bucket-name jmie-datalake --name raw/2025/01/01/batch_20250101_020000_source_1.jsonl.gz batch.jsonl.gz
+gunzip batch.jsonl.gz && head -5 batch.jsonl
 
 # CI/CD
 git push origin main  # Triggers ci.yml + cd.yml
